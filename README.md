@@ -15,7 +15,7 @@ Aplicación web en **Google Apps Script** para registrar visitas de soporte TIC 
    - Nombre y apellido
    - Referencia (carnet/cédula)
    - Observación
-   - Firma (URL de imagen en Drive)
+   - Firma (imagen embebida en celda con `=IMAGE(...)`, no solo link)
 6. Se muestra histórico de gestiones por referencia.
 
 ## Hojas requeridas
@@ -41,6 +41,8 @@ La app crea/ajusta automáticamente:
 
 - En `Code.gs`, configura `CONFIG.SIGNATURE_FOLDER_ID`.
 - Puedes poner **solo el ID** de la carpeta o **la URL completa** de Google Drive.
+- En este proyecto ya está configurada la carpeta compartida:
+  - `https://drive.google.com/drive/folders/10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-`
 - Si no se configura, la app usará (o creará) una carpeta llamada `Firmas_GestionTIC`.
 
 ## Archivos
