@@ -70,8 +70,18 @@
           <button id="btnEditProfile" class="ghost hidden" type="button">✏️ Editar</button>
         </div>
 
-        <details id="userDetails" class="hidden" open>
-          <summary>Ver / ocultar datos</summary>
+        <div id="userDetails" class="hidden">
+          <div class="row" style="margin-top:10px;">
+            <div>
+              <label>Usuario buscado</label>
+              <input id="searchedUser" disabled class="field-disabled" />
+            </div>
+            <div>
+              <label>Contraseña de acceso / nueva</label>
+              <input id="pin" type="password" />
+            </div>
+          </div>
+
           <div class="row" style="margin-top:10px;">
             <div>
               <label>Nombre y apellido</label>
@@ -80,10 +90,6 @@
             <div>
               <label id="labelCareerArea">Carrera</label>
               <select id="careerArea"></select>
-            </div>
-            <div>
-              <label>Clave del usuario</label>
-              <input id="pin" type="password" />
             </div>
           </div>
 
@@ -99,7 +105,7 @@
               <button id="btnClearSign" type="button" class="secondary">Limpiar firma</button>
             </div>
           </div>
-        </details>
+        </div>
       </div>
 
       <div id="visitCard" class="card hidden">
@@ -136,7 +142,7 @@
 
     <script>
       const REASON_MAP = {
-        'Soporte técnico': ['Problema con impresora', 'Problema con la red', 'Problema con la PC', 'Otros'],
+        'Soporte': ['Problema con impresora', 'Problema con la red', 'Problema con la PC', 'Otros'],
         'Sistemas': ['Problemas con Aula virtual', 'Problemas por portal', 'Apoyo', 'Otros'],
         'Otros': ['Limpieza de PC', 'Instalación de windows', 'Instalación de dispositivo', 'Instalación de impresora', 'Otros']
       };
@@ -291,11 +297,11 @@
 
         const modeBadge = document.getElementById('modeBadge');
         const editBtn = document.getElementById('btnEditProfile');
+        document.getElementById('searchedUser').value = result.reference || document.getElementById('reference').value.trim();
 
         if (result.found) {
           document.getElementById('fullName').value = result.user.fullName || '';
           document.getElementById('careerArea').value = result.user.careerArea || '';
-          document.getElementById('userDetails').open = false;
           modeBadge.textContent = 'Usuario recurrente';
           editBtn.classList.remove('hidden');
           state.signatureUrl = result.user.signatureUrl || '';
@@ -305,7 +311,6 @@
           document.getElementById('fullName').value = '';
           document.getElementById('careerArea').value = '';
           document.getElementById('pin').value = '';
-          document.getElementById('userDetails').open = true;
           modeBadge.textContent = 'Usuario nuevo';
           editBtn.classList.add('hidden');
           state.signatureUrl = '';
