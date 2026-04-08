@@ -1,7 +1,7 @@
 const CONFIG = {
   APP_NAME: 'Mesa de Soporte TIC',
   USERS_SHEET: 'Usuarios',
-  LOGS_SHEET: 'Registros',
+  LOG_SHEETS: ['Soporte', 'Sistemas', 'Otros'],
   TZ: Session.getScriptTimeZone() || 'America/Managua',
   SIGNATURE_FOLDER_ID: '10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-',
   CAREERS: [
@@ -47,17 +47,15 @@ const USER_HEADERS = [
 ];
 
 const LOG_HEADERS = [
+  'usuario',
+  'Nombre',
+  'Motivo',
+  'Observación',
+  'Comentarios',
+  'Área',
+  'Firma',
   'fecha',
-  'hora',
-  'categoria',
-  'motivo',
-  'comentario_otros',
-  'nombre_apellido',
-  'referencia',
-  'carrera_area',
-  'observacion',
-  'firma_url',
-  'fecha_hora_iso'
+  'hora'
 ];
 
 function doGet() {
@@ -152,7 +150,7 @@ function saveVisit(payload) {
 function initializeSheets_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheetHeaders_(ss, CONFIG.USERS_SHEET, USER_HEADERS);
-  ensureSheetHeaders_(ss, CONFIG.LOGS_SHEET, LOG_HEADERS);
+  CONFIG.LOG_SHEETS.forEach(sheetName => ensureSheetHeaders_(ss, sheetName, LOG_HEADERS));
 }
 
 function ensureSheetHeaders_(ss, sheetName, headers) {
@@ -272,20 +270,30 @@ function appendLog_(user, details) {
   const signatureUrl = String(user.signatureUrl || '').trim();
   const signatureCellValue = signatureUrl ? buildImageFormula_(signatureUrl) : '';
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.LOGS_SHEET);
+  const categorySheet = normalizeCategorySheet_(details.category);
+  if (!categorySheet) throw new Error('Categoría inválida.');
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(categorySheet);
   sheet.appendRow([
-    formattedDate,
-    formattedTime,
-    details.category,
-    details.reason,
-    details.reason === 'Otros' ? details.otherComment : '',
-    user.fullName,
     user.reference,
-    user.careerArea,
+    user.fullName,
+    details.reason,
     details.observation,
+    details.reason === 'Otros' ? details.otherComment : '',
+    user.careerArea,
     signatureCellValue,
-    now.toISOString()
+    formattedDate,
+    formattedTime
   ]);
+}
+
+function normalizeCategorySheet_(category) {
+  const raw = String(category || '').trim().toLowerCase();
+  if (!raw) return '';
+  if (raw === 'soporte' || raw === 'soporte técnico') return 'Soporte';
+  if (raw === 'sistemas') return 'Sistemas';
+  if (raw === 'otros') return 'Otros';
+  return '';
 }
 
 function buildImageFormula_(url) {
@@ -294,7 +302,53 @@ function buildImageFormula_(url) {
 }
 
 function getHistoryByReference_(reference) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.LOGS_SHEET);
+  const currentHistory = getHistoryByReferenceFromCategorySheets_(reference);
+  if (currentHistory.length) return currentHistory;
+  return getLegacyLogHistoryByReference_(reference);
+}
+
+function getHistoryByReferenceFromCategorySheets_(reference) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const allItems = [];
+
+  CONFIG.LOG_SHEETS.forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+
+    const rows = sheet.getDataRange().getValues();
+    if (rows.length <= 1) return;
+
+    const headers = rows.shift().map(h => String(h || '').trim());
+    const idxRef = headers.indexOf('usuario');
+    const idxDate = headers.indexOf('fecha');
+    const idxTime = headers.indexOf('hora');
+    const idxReason = headers.indexOf('Motivo');
+    const idxComment = headers.indexOf('Comentarios');
+    const idxObs = headers.indexOf('Observación');
+
+    rows
+      .filter(r => String(r[idxRef] || '').trim().toUpperCase() === reference.toUpperCase())
+      .forEach(r => {
+        const reason = String(r[idxReason] || '');
+        const extraComment = String(r[idxComment] || '');
+        const reasonText = reason === 'Otros' && extraComment ? `${reason}: ${extraComment}` : reason;
+        allItems.push({
+          fecha: r[idxDate],
+          hora: r[idxTime],
+          categoria: sheetName,
+          motivo: reasonText,
+          observacion: r[idxObs]
+        });
+      });
+  });
+
+  return allItems.reverse();
+}
+
+function getLegacyLogHistoryByReference_(reference) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Registros');
+  if (!sheet) return [];
+
   const rows = sheet.getDataRange().getValues();
   if (rows.length <= 1) return [];
 
