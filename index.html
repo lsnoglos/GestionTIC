@@ -3,7 +3,7 @@
   <head>
     <base target="_top" />
     <style>
-      :root { --bg:#f5f7fb; --card:#fff; --line:#d8dfeb; --primary:#2856d6; }
+      :root { --bg:#f5f7fb; --card:#fff; --line:#d8dfeb; --primary:#2856d6; --muted:#5e6a80; }
       body { margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#24324a; }
       .container { max-width:980px; margin:24px auto; padding:0 14px; }
       .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
@@ -14,29 +14,46 @@
       textarea { min-height:72px; resize:vertical; }
       button { background:var(--primary); color:#fff; border:none; font-weight:700; cursor:pointer; }
       button.secondary { background:#5e6a80; }
+      button.ghost { background:#eef2ff; color:#1f3f9d; border:1px solid #b9c8ff; }
       .inline { display:flex; gap:8px; align-items:end; }
       .inline > * { flex:1; }
       .hidden { display:none; }
-      .tag { padding:4px 8px; border-radius:999px; font-size:12px; color:#fff; background:#415a92; display:inline-block; }
-      #signatureCanvas { width:100%; height:180px; border:1px dashed #9ca9c4; border-radius:10px; touch-action:none; background:#fff; }
-      .history-item { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; background:#fafcff; }
       .muted { color:#6a7894; font-size:13px; }
       .status { margin-top:8px; font-weight:700; }
+      .badge { display:inline-block; border-radius:999px; padding:4px 10px; font-size:12px; color:#fff; margin-right:6px; }
+      .badge.alumno { background:#2c6fb8; }
+      .badge.personal { background:#0d7c6a; }
+      .profile-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+      .summary { font-size:14px; }
+      #signatureCanvas { width:100%; height:180px; border:1px dashed #9ca9c4; border-radius:10px; touch-action:none; background:#fff; }
+      .signature-preview { max-width:260px; border:1px solid #ccd5e8; border-radius:8px; padding:6px; background:#fff; }
+      .history-item { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; background:#fafcff; }
+      #globalLoading {
+        position:fixed; inset:0; background:rgba(255,255,255,.86);
+        display:flex; align-items:center; justify-content:center;
+        z-index:9999;
+      }
+      #globalLoading img { width:120px; height:120px; }
+      details { border:1px solid #d6deed; border-radius:8px; padding:8px 10px; background:#fcfdff; }
+      details > summary { cursor:pointer; font-weight:700; }
+      .field-disabled { opacity:.75; }
     </style>
   </head>
   <body>
+    <div id="globalLoading"><img src="https://usagif.com/wp-content/uploads/loading-96.gif" alt="Cargando" /></div>
+
     <div class="container">
       <div class="card">
         <h1 id="appTitle">Registro TIC</h1>
-        <p class="muted">Flujo: escanea QR → busca por carnet/cédula → registra motivo de visita.</p>
+        <p class="muted">Ingresa usuario (carnet o correo institucional) y registra la asistencia.</p>
       </div>
 
       <div class="card">
         <h2>1) Buscar usuario</h2>
         <div class="inline">
           <div>
-            <label>Referencia (Carnet o Cédula)</label>
-            <input id="reference" placeholder="Ej: 2023-IS-001 o 281-240889-0009S" />
+            <label>Usuario</label>
+            <input id="reference" />
           </div>
           <button id="btnSearch">Buscar</button>
         </div>
@@ -44,55 +61,61 @@
       </div>
 
       <div id="userCard" class="card hidden">
-        <h2>2) Datos de usuario</h2>
-        <span id="userTypeTag" class="tag"></span>
-
-        <div class="row" style="margin-top:10px;">
+        <h2>2) Información de usuario</h2>
+        <div class="profile-header">
           <div>
-            <label>Nombre y apellido</label>
-            <input id="fullName" />
+            <span id="userTypeBadge" class="badge alumno">Alumno</span>
+            <span id="modeBadge" class="muted"></span>
           </div>
-          <div>
-            <label>Carrera (solo alumno)</label>
-            <select id="career"></select>
-          </div>
-          <div>
-            <label>Celular</label>
-            <input id="phone" />
-          </div>
-          <div>
-            <label>Fecha de nacimiento</label>
-            <input id="birthDate" type="date" />
-          </div>
-          <div>
-            <label>Clave del usuario</label>
-            <input id="pin" type="password" placeholder="Requerida para guardar" />
-          </div>
+          <button id="btnEditProfile" class="ghost hidden" type="button">✏️ Editar</button>
         </div>
 
-        <h3 style="margin-top:16px;">Firma</h3>
-        <p class="muted">Dibuja la firma en el celular. Se guardará en Drive y se reutiliza en visitas futuras.</p>
-        <canvas id="signatureCanvas"></canvas>
-        <div class="inline" style="margin-top:8px;">
-          <button id="btnClearSign" class="secondary">Limpiar firma</button>
-        </div>
+        <details id="userDetails" class="hidden" open>
+          <summary>Ver / ocultar datos</summary>
+          <div class="row" style="margin-top:10px;">
+            <div>
+              <label>Nombre y apellido</label>
+              <input id="fullName" />
+            </div>
+            <div>
+              <label id="labelCareerArea">Carrera</label>
+              <select id="careerArea"></select>
+            </div>
+            <div>
+              <label>Clave del usuario</label>
+              <input id="pin" type="password" />
+            </div>
+          </div>
+
+          <h3 style="margin-top:16px;">Firma</h3>
+          <div id="signaturePreviewWrap" class="hidden">
+            <p class="muted">Firma registrada:</p>
+            <img id="signaturePreview" class="signature-preview" alt="Firma registrada" />
+          </div>
+          <div id="signatureCanvasWrap" class="hidden">
+            <p class="muted">Dibuja firma nueva si necesitas actualizarla.</p>
+            <canvas id="signatureCanvas"></canvas>
+            <div class="inline" style="margin-top:8px;">
+              <button id="btnClearSign" type="button" class="secondary">Limpiar firma</button>
+            </div>
+          </div>
+        </details>
       </div>
 
       <div id="visitCard" class="card hidden">
-        <h2>3) Registrar visita</h2>
+        <h2>3) Motivo de asistencia</h2>
         <div class="row">
           <div>
-            <label>Motivo</label>
-            <select id="reason">
-              <option value="">Selecciona...</option>
-              <option>Acceso a Aula virtual</option>
-              <option>Acceso a Portal</option>
-              <option>Otros</option>
-            </select>
+            <label>Categoría</label>
+            <select id="category"></select>
           </div>
-          <div id="otherReasonWrap" class="hidden">
-            <label>Detalle de "Otros"</label>
-            <input id="otherReason" placeholder="Describe el problema" />
+          <div>
+            <label>Motivo</label>
+            <select id="reason"></select>
+          </div>
+          <div id="otherCommentWrap" class="hidden">
+            <label>Comentario</label>
+            <input id="otherComment" />
           </div>
           <div>
             <label>Observación</label>
@@ -106,19 +129,33 @@
       </div>
 
       <div id="historyCard" class="card hidden">
-        <h2>Histórico de gestiones</h2>
+        <h2>Histórico de asistencias</h2>
         <div id="historyList"></div>
       </div>
     </div>
 
     <script>
+      const REASON_MAP = {
+        'Soporte técnico': ['Problema con impresora', 'Problema con la red', 'Problema con la PC', 'Otros'],
+        'Sistemas': ['Problemas con Aula virtual', 'Problemas por portal', 'Apoyo', 'Otros'],
+        'Otros': ['Limpieza de PC', 'Instalación de windows', 'Instalación de dispositivo', 'Instalación de impresora', 'Otros']
+      };
+
       const state = {
         existingUser: false,
         inferredType: 'alumno',
-        hasDrawn: false
+        hasDrawn: false,
+        allowProfileEdit: false,
+        signatureUrl: '',
+        careers: [],
+        areas: []
       };
 
       let canvas, ctx, drawing = false;
+
+      function setGlobalLoading(isLoading) {
+        document.getElementById('globalLoading').style.display = isLoading ? 'flex' : 'none';
+      }
 
       function initSignatureCanvas() {
         canvas = document.getElementById('signatureCanvas');
@@ -148,10 +185,6 @@
         canvas.addEventListener('touchmove', e => { e.preventDefault(); const p = pos(e); move(p.x, p.y); }, { passive: false });
         canvas.addEventListener('touchend', end);
 
-        canvas.addEventListener('pointerdown', e => { const p = pos(e); start(p.x, p.y); });
-        canvas.addEventListener('pointermove', e => { const p = pos(e); move(p.x, p.y); });
-        window.addEventListener('pointerup', end);
-
         window.addEventListener('resize', () => {
           resizeCanvas();
           state.hasDrawn = false;
@@ -174,17 +207,6 @@
         state.hasDrawn = false;
       }
 
-      function fillCareers(careers) {
-        const sel = document.getElementById('career');
-        sel.innerHTML = '<option value="">Selecciona...</option>';
-        careers.forEach(c => {
-          const op = document.createElement('option');
-          op.value = c;
-          op.textContent = c;
-          sel.appendChild(op);
-        });
-      }
-
       function setStatus(id, msg, ok = true) {
         const el = document.getElementById(id);
         el.style.color = ok ? '#0f7a2f' : '#b42318';
@@ -195,22 +217,50 @@
         if (!err) return fallback;
         if (typeof err === 'string') return err;
         if (typeof err.message === 'string' && err.message.trim()) return err.message;
-        if (typeof err.toString === 'function') {
-          const text = String(err.toString()).trim();
-          if (text && text !== '[object Object]') return text;
-        }
         return fallback;
       }
 
-      function toggleByType(type) {
+      function fillSelect(el, values, label = 'Selecciona...') {
+        el.innerHTML = `<option value="">${label}</option>`;
+        values.forEach(value => {
+          const op = document.createElement('option');
+          op.value = value;
+          op.textContent = value;
+          el.appendChild(op);
+        });
+      }
+
+      function setProfileEditMode(enabled) {
+        state.allowProfileEdit = enabled;
+        const fullName = document.getElementById('fullName');
+        const careerArea = document.getElementById('careerArea');
+
+        const shouldLock = state.existingUser && !enabled;
+        fullName.disabled = shouldLock;
+        careerArea.disabled = shouldLock;
+        fullName.classList.toggle('field-disabled', shouldLock);
+        careerArea.classList.toggle('field-disabled', shouldLock);
+
+        document.getElementById('btnEditProfile').textContent = enabled ? '✅ Listo' : '✏️ Editar';
+        const showCanvas = !state.existingUser || enabled;
+        document.getElementById('signatureCanvasWrap').classList.toggle('hidden', !showCanvas);
+        document.getElementById('signaturePreviewWrap').classList.toggle('hidden', !state.signatureUrl);
+
+        if (showCanvas) requestAnimationFrame(resizeCanvas);
+        if (!enabled) clearSign();
+      }
+
+      function applyTypeUI(type) {
         const isStudent = type === 'alumno';
-        document.getElementById('career').disabled = !isStudent;
-        document.getElementById('birthDate').disabled = !isStudent;
-        if (!isStudent) {
-          document.getElementById('career').value = '';
-          document.getElementById('birthDate').value = '';
-        }
-        document.getElementById('userTypeTag').textContent = isStudent ? 'Alumno' : 'Maestro';
+        const label = document.getElementById('labelCareerArea');
+        const badge = document.getElementById('userTypeBadge');
+
+        label.textContent = isStudent ? 'Carrera' : 'Área';
+        badge.textContent = isStudent ? 'Alumno' : 'Personal';
+        badge.className = `badge ${isStudent ? 'alumno' : 'personal'}`;
+
+        const options = isStudent ? state.careers : state.areas;
+        fillSelect(document.getElementById('careerArea'), options);
       }
 
       function paintHistory(items) {
@@ -224,7 +274,7 @@
         items.forEach(it => {
           const div = document.createElement('div');
           div.className = 'history-item';
-          div.innerHTML = `<strong>${it.fecha} ${it.hora}</strong><br>${it.descripcion}<br><span class="muted">Obs: ${it.observacion || '---'}</span>`;
+          div.innerHTML = `<strong>${it.fecha} ${it.hora}</strong><br>${it.categoria} - ${it.motivo}<br><span class="muted">Obs: ${it.observacion || '---'}</span>`;
           host.appendChild(div);
         });
       }
@@ -233,91 +283,131 @@
         document.getElementById('userCard').classList.remove('hidden');
         document.getElementById('visitCard').classList.remove('hidden');
         document.getElementById('historyCard').classList.remove('hidden');
-        requestAnimationFrame(resizeCanvas);
+        document.getElementById('userDetails').classList.remove('hidden');
 
         state.existingUser = result.found;
         state.inferredType = result.found ? result.user.userType : result.inferredType;
-        toggleByType(state.inferredType);
+        applyTypeUI(state.inferredType);
+
+        const modeBadge = document.getElementById('modeBadge');
+        const editBtn = document.getElementById('btnEditProfile');
 
         if (result.found) {
           document.getElementById('fullName').value = result.user.fullName || '';
-          document.getElementById('career').value = result.user.career || '';
-          document.getElementById('phone').value = result.user.phone || '';
-          document.getElementById('birthDate').value = result.user.birthDate || '';
-          setStatus('searchMsg', 'Usuario existente. Ingresa la clave para registrar visita.');
+          document.getElementById('careerArea').value = result.user.careerArea || '';
+          document.getElementById('userDetails').open = false;
+          modeBadge.textContent = 'Usuario recurrente';
+          editBtn.classList.remove('hidden');
+          state.signatureUrl = result.user.signatureUrl || '';
+          document.getElementById('signaturePreview').src = state.signatureUrl;
+          setStatus('searchMsg', 'Usuario encontrado. Puedes continuar con el motivo de asistencia.');
         } else {
           document.getElementById('fullName').value = '';
-          document.getElementById('career').value = '';
-          document.getElementById('phone').value = '';
-          document.getElementById('birthDate').value = '';
+          document.getElementById('careerArea').value = '';
           document.getElementById('pin').value = '';
-          clearSign();
-          setStatus('searchMsg', 'Usuario nuevo. Completa los datos y crea su clave.');
+          document.getElementById('userDetails').open = true;
+          modeBadge.textContent = 'Usuario nuevo';
+          editBtn.classList.add('hidden');
+          state.signatureUrl = '';
+          document.getElementById('signaturePreview').removeAttribute('src');
+          setStatus('searchMsg', 'Usuario nuevo. Completa nombre, carrera/área, firma y clave.');
         }
 
+        setProfileEditMode(!result.found);
         paintHistory(result.history || []);
       }
 
       function searchUser() {
         const ref = document.getElementById('reference').value.trim();
-        if (!ref) return setStatus('searchMsg', 'Escribe una referencia primero.', false);
+        if (!ref) return setStatus('searchMsg', 'Escribe un usuario primero.', false);
 
         setStatus('searchMsg', 'Buscando...', true);
+        setGlobalLoading(true);
         google.script.run
-          .withSuccessHandler(applyUserData)
+          .withSuccessHandler(result => {
+            applyUserData(result);
+            setGlobalLoading(false);
+          })
           .withFailureHandler(err => {
             const message = getErrorMessage(err, 'Ocurrió un error al buscar el usuario.');
             setStatus('searchMsg', message, false);
+            setGlobalLoading(false);
           })
           .findUserAndHistory(ref);
       }
 
+      function getSignaturePayload() {
+        const shouldSend = !state.existingUser || state.allowProfileEdit;
+        return shouldSend && state.hasDrawn ? canvas.toDataURL('image/png') : '';
+      }
+
       function saveVisit() {
-        const reason = document.getElementById('reason').value;
         const payload = {
           reference: document.getElementById('reference').value.trim(),
           fullName: document.getElementById('fullName').value.trim(),
-          career: document.getElementById('career').value,
-          phone: document.getElementById('phone').value.trim(),
-          birthDate: document.getElementById('birthDate').value,
+          careerArea: document.getElementById('careerArea').value,
           pin: document.getElementById('pin').value,
-          reason,
-          otherReason: document.getElementById('otherReason').value.trim(),
+          category: document.getElementById('category').value,
+          reason: document.getElementById('reason').value,
+          otherComment: document.getElementById('otherComment').value.trim(),
           observation: document.getElementById('observation').value.trim(),
-          signatureDataUrl: state.hasDrawn ? canvas.toDataURL('image/png') : ''
+          signatureDataUrl: getSignaturePayload(),
+          allowProfileEdit: state.allowProfileEdit
         };
 
         setStatus('saveMsg', 'Guardando...', true);
+        setGlobalLoading(true);
         google.script.run
           .withSuccessHandler(res => {
             setStatus('saveMsg', res.message, true);
             paintHistory(res.history || []);
             document.getElementById('observation').value = '';
-            document.getElementById('reason').value = '';
-            document.getElementById('otherReason').value = '';
-            document.getElementById('otherReasonWrap').classList.add('hidden');
+            document.getElementById('otherComment').value = '';
+            document.getElementById('otherCommentWrap').classList.add('hidden');
             clearSign();
+            if (state.existingUser && state.allowProfileEdit) setProfileEditMode(false);
+            setGlobalLoading(false);
           })
           .withFailureHandler(err => {
             const message = getErrorMessage(err, 'Ocurrió un error al guardar el registro.');
             setStatus('saveMsg', message, false);
+            setGlobalLoading(false);
           })
           .saveVisit(payload);
+      }
+
+      function loadReasonsByCategory() {
+        const category = document.getElementById('category').value;
+        const reasons = REASON_MAP[category] || [];
+        fillSelect(document.getElementById('reason'), reasons);
+        document.getElementById('otherCommentWrap').classList.add('hidden');
+        document.getElementById('otherComment').value = '';
       }
 
       document.addEventListener('DOMContentLoaded', () => {
         initSignatureCanvas();
 
+        fillSelect(document.getElementById('category'), Object.keys(REASON_MAP));
+        fillSelect(document.getElementById('reason'), []);
+
         google.script.run.withSuccessHandler(data => {
           document.getElementById('appTitle').textContent = data.appName;
-          fillCareers(data.careers);
+          state.careers = data.careers || [];
+          state.areas = data.areas || [];
+          setGlobalLoading(false);
+        }).withFailureHandler(() => {
+          setGlobalLoading(false);
         }).getAppBootstrap();
 
         document.getElementById('btnSearch').addEventListener('click', searchUser);
         document.getElementById('btnSave').addEventListener('click', saveVisit);
         document.getElementById('btnClearSign').addEventListener('click', clearSign);
+        document.getElementById('btnEditProfile').addEventListener('click', () => {
+          setProfileEditMode(!state.allowProfileEdit);
+        });
+        document.getElementById('category').addEventListener('change', loadReasonsByCategory);
         document.getElementById('reason').addEventListener('change', e => {
-          document.getElementById('otherReasonWrap').classList.toggle('hidden', e.target.value !== 'Otros');
+          document.getElementById('otherCommentWrap').classList.toggle('hidden', e.target.value !== 'Otros');
         });
       });
     </script>
