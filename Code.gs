@@ -3,7 +3,7 @@ const CONFIG = {
   USERS_SHEET: 'Usuarios',
   LOGS_SHEET: 'Registros',
   TZ: Session.getScriptTimeZone() || 'America/Managua',
-  SIGNATURE_FOLDER_ID: 'https://drive.google.com/drive/folders/10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-', // Puede ser ID o URL.
+  SIGNATURE_FOLDER_ID: '10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-',
   CAREERS: [
     'Ing. de Sistemas',
     'Ing. Civil',
@@ -431,4 +431,13 @@ function extractDriveId_(value) {
   if (!raw) return '';
   const matched = raw.match(/[-\w]{25,}/);
   return matched ? matched[0] : raw;
+}
+
+function activarPermisosDrive() {
+  DriveApp.getRootFolder();
+}
+
+function testDriveDirecto() {
+  const folder = DriveApp.getFolderById("10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-");
+  folder.createFile("test.txt", "ok");
 }
