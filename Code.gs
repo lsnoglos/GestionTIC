@@ -43,6 +43,19 @@ const LOG_HEADERS = [
   'fecha_hora_iso'
 ];
 
+const USER_TYPE_MAP = {
+  A: 'alumno',
+  ALUMNO: 'alumno',
+  ALUMNA: 'alumno',
+  E: 'alumno',
+  ESTUDIANTE: 'alumno',
+  M: 'maestro',
+  MAESTRO: 'maestro',
+  MAESTRA: 'maestro',
+  DOCENTE: 'maestro',
+  PROFESOR: 'maestro'
+};
+
 function doGet() {
   initializeSheets_();
   return HtmlService.createTemplateFromFile('index')
@@ -212,11 +225,13 @@ function updateExistingUser_(existingUser, payload) {
   const updatedAt = new Date();
   const latest = {
     ...existingUser,
+    userType: normalizeUserType_(existingUser.userType, existingUser.reference),
     signatureFileId: signature.fileId,
     signatureUrl: signature.url,
     updatedAt
   };
 
+  sheet.getRange(row, 2).setValue(latest.userType);
   sheet.getRange(row, 8).setValue(latest.signatureFileId || '');
   sheet.getRange(row, 9).setValue(latest.signatureUrl || '');
   sheet.getRange(row, 11).setValue(updatedAt);
@@ -291,7 +306,7 @@ function findUserByReference_(reference) {
   const row = rows[rowIndex];
   return {
     reference: String(row[idx.reference] || ''),
-    userType: String(row[idx.userType] || ''),
+    userType: normalizeUserType_(row[idx.userType], row[idx.reference]),
     fullName: String(row[idx.fullName] || ''),
     career: String(row[idx.career] || ''),
     phone: String(row[idx.phone] || ''),
@@ -305,6 +320,12 @@ function findUserByReference_(reference) {
 
 function inferUserType_(reference) {
   return isCedula_(reference) ? 'maestro' : 'alumno';
+}
+
+function normalizeUserType_(rawType, reference) {
+  const key = String(rawType || '').trim().toUpperCase();
+  if (USER_TYPE_MAP[key]) return USER_TYPE_MAP[key];
+  return inferUserType_(sanitizeReference_(reference));
 }
 
 function sanitizeReference_(reference) {
@@ -378,8 +399,9 @@ function saveSignatureImage_(reference, signatureDataUrl, existingFileId) {
 }
 
 function getSignatureFolder_() {
-  if (CONFIG.SIGNATURE_FOLDER_ID) {
-    return DriveApp.getFolderById(CONFIG.SIGNATURE_FOLDER_ID);
+  const configuredFolderId = extractDriveId_(CONFIG.SIGNATURE_FOLDER_ID);
+  if (configuredFolderId) {
+    return DriveApp.getFolderById(configuredFolderId);
   }
 
   const folders = DriveApp.getFoldersByName('Firmas_GestionTIC');
@@ -389,4 +411,11 @@ function getSignatureFolder_() {
 
 function drivePublicUrl_(fileId) {
   return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : '';
+}
+
+function extractDriveId_(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const matched = raw.match(/[-\w]{25,}/);
+  return matched ? matched[0] : raw;
 }

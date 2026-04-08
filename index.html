@@ -129,7 +129,7 @@
         ctx.lineCap = 'round';
 
         const start = (x, y) => { drawing = true; ctx.beginPath(); ctx.moveTo(x, y); state.hasDrawn = true; };
-        const move = (x, y) => { if (!drawing) return; ctx.lineTo(x, y); ctx.stroke(); };
+        const move = (x, y) => { if (!drawing) return; ctx.lineTo(x, y); ctx.stroke(); state.hasDrawn = true; };
         const end = () => { drawing = false; };
 
         const pos = (e) => {
@@ -147,6 +147,15 @@
         canvas.addEventListener('touchstart', e => { e.preventDefault(); const p = pos(e); start(p.x, p.y); }, { passive: false });
         canvas.addEventListener('touchmove', e => { e.preventDefault(); const p = pos(e); move(p.x, p.y); }, { passive: false });
         canvas.addEventListener('touchend', end);
+
+        canvas.addEventListener('pointerdown', e => { const p = pos(e); start(p.x, p.y); });
+        canvas.addEventListener('pointermove', e => { const p = pos(e); move(p.x, p.y); });
+        window.addEventListener('pointerup', end);
+
+        window.addEventListener('resize', () => {
+          resizeCanvas();
+          state.hasDrawn = false;
+        });
       }
 
       function resizeCanvas() {
