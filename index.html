@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      :root { --bg:#f5f7fb; --card:#fff; --line:#d8dfeb; --primary:#2856d6; }
+      body { margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#24324a; }
+      .container { max-width:980px; margin:24px auto; padding:0 14px; }
+      .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+      h1,h2,h3 { margin:0 0 10px; }
+      .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+      label { font-size:13px; font-weight:700; display:block; margin-bottom:4px; }
+      input,select,textarea,button { width:100%; box-sizing:border-box; padding:9px; border-radius:8px; border:1px solid #c7d0e0; }
+      textarea { min-height:72px; resize:vertical; }
+      button { background:var(--primary); color:#fff; border:none; font-weight:700; cursor:pointer; }
+      button.secondary { background:#5e6a80; }
+      .inline { display:flex; gap:8px; align-items:end; }
+      .inline > * { flex:1; }
+      .hidden { display:none; }
+      .tag { padding:4px 8px; border-radius:999px; font-size:12px; color:#fff; background:#415a92; display:inline-block; }
+      #signatureCanvas { width:100%; height:180px; border:1px dashed #9ca9c4; border-radius:10px; touch-action:none; background:#fff; }
+      .history-item { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; background:#fafcff; }
+      .muted { color:#6a7894; font-size:13px; }
+      .status { margin-top:8px; font-weight:700; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1 id="appTitle">Registro TIC</h1>
+        <p class="muted">Flujo: escanea QR → busca por carnet/cédula → registra motivo de visita.</p>
+      </div>
+
+      <div class="card">
+        <h2>1) Buscar usuario</h2>
+        <div class="inline">
+          <div>
+            <label>Referencia (Carnet o Cédula)</label>
+            <input id="reference" placeholder="Ej: 2023-IS-001 o 281-240889-0009S" />
+          </div>
+          <button id="btnSearch">Buscar</button>
+        </div>
+        <div id="searchMsg" class="status"></div>
+      </div>
+
+      <div id="userCard" class="card hidden">
+        <h2>2) Datos de usuario</h2>
+        <span id="userTypeTag" class="tag"></span>
+
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <label>Nombre y apellido</label>
+            <input id="fullName" />
+          </div>
+          <div>
+            <label>Carrera (solo alumno)</label>
+            <select id="career"></select>
+          </div>
+          <div>
+            <label>Celular</label>
+            <input id="phone" />
+          </div>
+          <div>
+            <label>Fecha de nacimiento</label>
+            <input id="birthDate" type="date" />
+          </div>
+          <div>
+            <label>Clave del usuario</label>
+            <input id="pin" type="password" placeholder="Requerida para guardar" />
+          </div>
+        </div>
+
+        <h3 style="margin-top:16px;">Firma</h3>
+        <p class="muted">Dibuja la firma en el celular. Se guardará en Drive y se reutiliza en visitas futuras.</p>
+        <canvas id="signatureCanvas"></canvas>
+        <div class="inline" style="margin-top:8px;">
+          <button id="btnClearSign" class="secondary">Limpiar firma</button>
+        </div>
+      </div>
+
+      <div id="visitCard" class="card hidden">
+        <h2>3) Registrar visita</h2>
+        <div class="row">
+          <div>
+            <label>Motivo</label>
+            <select id="reason">
+              <option value="">Selecciona...</option>
+              <option>Acceso a Aula virtual</option>
+              <option>Acceso a Portal</option>
+              <option>Otros</option>
+            </select>
+          </div>
+          <div id="otherReasonWrap" class="hidden">
+            <label>Detalle de "Otros"</label>
+            <input id="otherReason" placeholder="Describe el problema" />
+          </div>
+          <div>
+            <label>Observación</label>
+            <textarea id="observation" placeholder="Opcional"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <button id="btnSave">Guardar registro</button>
+          <div id="saveMsg" class="status"></div>
+        </div>
+      </div>
+
+      <div id="historyCard" class="card hidden">
+        <h2>Histórico de gestiones</h2>
+        <div id="historyList"></div>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        existingUser: false,
+        inferredType: 'alumno',
+        hasDrawn: false
+      };
+
+      let canvas, ctx, drawing = false;
+
+      function initSignatureCanvas() {
+        canvas = document.getElementById('signatureCanvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        ctx.strokeStyle = '#0d1e46';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+
+        const start = (x, y) => { drawing = true; ctx.beginPath(); ctx.moveTo(x, y); state.hasDrawn = true; };
+        const move = (x, y) => { if (!drawing) return; ctx.lineTo(x, y); ctx.stroke(); };
+        const end = () => { drawing = false; };
+
+        const pos = (e) => {
+          const rect = canvas.getBoundingClientRect();
+          if (e.touches && e.touches[0]) {
+            return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+          }
+          return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        };
+
+        canvas.addEventListener('mousedown', e => { const p = pos(e); start(p.x, p.y); });
+        canvas.addEventListener('mousemove', e => { const p = pos(e); move(p.x, p.y); });
+        window.addEventListener('mouseup', end);
+
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); const p = pos(e); start(p.x, p.y); }, { passive: false });
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); const p = pos(e); move(p.x, p.y); }, { passive: false });
+        canvas.addEventListener('touchend', end);
+      }
+
+      function resizeCanvas() {
+        const ratio = window.devicePixelRatio || 1;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        ctx = canvas.getContext('2d');
+        ctx.scale(ratio, ratio);
+        ctx.clearRect(0, 0, width, height);
+      }
+
+      function clearSign() {
+        ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+        state.hasDrawn = false;
+      }
+
+      function fillCareers(careers) {
+        const sel = document.getElementById('career');
+        sel.innerHTML = '<option value="">Selecciona...</option>';
+        careers.forEach(c => {
+          const op = document.createElement('option');
+          op.value = c;
+          op.textContent = c;
+          sel.appendChild(op);
+        });
+      }
+
+      function setStatus(id, msg, ok = true) {
+        const el = document.getElementById(id);
+        el.style.color = ok ? '#0f7a2f' : '#b42318';
+        el.textContent = msg;
+      }
+
+      function toggleByType(type) {
+        const isStudent = type === 'alumno';
+        document.getElementById('career').disabled = !isStudent;
+        document.getElementById('birthDate').disabled = !isStudent;
+        if (!isStudent) {
+          document.getElementById('career').value = '';
+          document.getElementById('birthDate').value = '';
+        }
+        document.getElementById('userTypeTag').textContent = isStudent ? 'Alumno' : 'Maestro';
+      }
+
+      function paintHistory(items) {
+        const host = document.getElementById('historyList');
+        host.innerHTML = '';
+        if (!items.length) {
+          host.innerHTML = '<p class="muted">Sin registros previos.</p>';
+          return;
+        }
+
+        items.forEach(it => {
+          const div = document.createElement('div');
+          div.className = 'history-item';
+          div.innerHTML = `<strong>${it.fecha} ${it.hora}</strong><br>${it.descripcion}<br><span class="muted">Obs: ${it.observacion || '---'}</span>`;
+          host.appendChild(div);
+        });
+      }
+
+      function applyUserData(result) {
+        document.getElementById('userCard').classList.remove('hidden');
+        document.getElementById('visitCard').classList.remove('hidden');
+        document.getElementById('historyCard').classList.remove('hidden');
+
+        state.existingUser = result.found;
+        state.inferredType = result.found ? result.user.userType : result.inferredType;
+        toggleByType(state.inferredType);
+
+        if (result.found) {
+          document.getElementById('fullName').value = result.user.fullName || '';
+          document.getElementById('career').value = result.user.career || '';
+          document.getElementById('phone').value = result.user.phone || '';
+          document.getElementById('birthDate').value = result.user.birthDate || '';
+          setStatus('searchMsg', 'Usuario existente. Ingresa la clave para registrar visita.');
+        } else {
+          document.getElementById('fullName').value = '';
+          document.getElementById('career').value = '';
+          document.getElementById('phone').value = '';
+          document.getElementById('birthDate').value = '';
+          document.getElementById('pin').value = '';
+          clearSign();
+          setStatus('searchMsg', 'Usuario nuevo. Completa los datos y crea su clave.');
+        }
+
+        paintHistory(result.history || []);
+      }
+
+      function searchUser() {
+        const ref = document.getElementById('reference').value.trim();
+        if (!ref) return setStatus('searchMsg', 'Escribe una referencia primero.', false);
+
+        setStatus('searchMsg', 'Buscando...', true);
+        google.script.run
+          .withSuccessHandler(applyUserData)
+          .withFailureHandler(err => setStatus('searchMsg', err.message, false))
+          .findUserAndHistory(ref);
+      }
+
+      function saveVisit() {
+        const reason = document.getElementById('reason').value;
+        const payload = {
+          reference: document.getElementById('reference').value.trim(),
+          fullName: document.getElementById('fullName').value.trim(),
+          career: document.getElementById('career').value,
+          phone: document.getElementById('phone').value.trim(),
+          birthDate: document.getElementById('birthDate').value,
+          pin: document.getElementById('pin').value,
+          reason,
+          otherReason: document.getElementById('otherReason').value.trim(),
+          observation: document.getElementById('observation').value.trim(),
+          signatureDataUrl: state.hasDrawn ? canvas.toDataURL('image/png') : ''
+        };
+
+        setStatus('saveMsg', 'Guardando...', true);
+        google.script.run
+          .withSuccessHandler(res => {
+            setStatus('saveMsg', res.message, true);
+            paintHistory(res.history || []);
+            document.getElementById('observation').value = '';
+            document.getElementById('reason').value = '';
+            document.getElementById('otherReason').value = '';
+            document.getElementById('otherReasonWrap').classList.add('hidden');
+            clearSign();
+          })
+          .withFailureHandler(err => setStatus('saveMsg', err.message, false))
+          .saveVisit(payload);
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        initSignatureCanvas();
+
+        google.script.run.withSuccessHandler(data => {
+          document.getElementById('appTitle').textContent = data.appName;
+          fillCareers(data.careers);
+        }).getAppBootstrap();
+
+        document.getElementById('btnSearch').addEventListener('click', searchUser);
+        document.getElementById('btnSave').addEventListener('click', saveVisit);
+        document.getElementById('btnClearSign').addEventListener('click', clearSign);
+        document.getElementById('reason').addEventListener('change', e => {
+          document.getElementById('otherReasonWrap').classList.toggle('hidden', e.target.value !== 'Otros');
+        });
+      });
+    </script>
+  </body>
+</html>
