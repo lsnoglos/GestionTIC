@@ -191,6 +191,17 @@
         el.textContent = msg;
       }
 
+      function getErrorMessage(err, fallback) {
+        if (!err) return fallback;
+        if (typeof err === 'string') return err;
+        if (typeof err.message === 'string' && err.message.trim()) return err.message;
+        if (typeof err.toString === 'function') {
+          const text = String(err.toString()).trim();
+          if (text && text !== '[object Object]') return text;
+        }
+        return fallback;
+      }
+
       function toggleByType(type) {
         const isStudent = type === 'alumno';
         document.getElementById('career').disabled = !isStudent;
@@ -254,7 +265,10 @@
         setStatus('searchMsg', 'Buscando...', true);
         google.script.run
           .withSuccessHandler(applyUserData)
-          .withFailureHandler(err => setStatus('searchMsg', err.message, false))
+          .withFailureHandler(err => {
+            const message = getErrorMessage(err, 'Ocurrió un error al buscar el usuario.');
+            setStatus('searchMsg', message, false);
+          })
           .findUserAndHistory(ref);
       }
 
@@ -284,7 +298,10 @@
             document.getElementById('otherReasonWrap').classList.add('hidden');
             clearSign();
           })
-          .withFailureHandler(err => setStatus('saveMsg', err.message, false))
+          .withFailureHandler(err => {
+            const message = getErrorMessage(err, 'Ocurrió un error al guardar el registro.');
+            setStatus('saveMsg', message, false);
+          })
           .saveVisit(payload);
       }
 
