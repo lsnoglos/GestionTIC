@@ -222,6 +222,7 @@
         document.getElementById('userCard').classList.remove('hidden');
         document.getElementById('visitCard').classList.remove('hidden');
         document.getElementById('historyCard').classList.remove('hidden');
+        requestAnimationFrame(resizeCanvas);
 
         state.existingUser = result.found;
         state.inferredType = result.found ? result.user.userType : result.inferredType;
