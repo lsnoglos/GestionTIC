@@ -3,7 +3,7 @@ const CONFIG = {
   USERS_SHEET: 'Usuarios',
   LOGS_SHEET: 'Registros',
   TZ: Session.getScriptTimeZone() || 'America/Managua',
-  SIGNATURE_FOLDER_ID: '', // Opcional: agrega aquí el ID de una carpeta de Drive existente.
+  SIGNATURE_FOLDER_ID: 'https://drive.google.com/drive/folders/10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-', // Puede ser ID o URL.
   CAREERS: [
     'Ing. de Sistemas',
     'Ing. Civil',
@@ -170,11 +170,13 @@ function createUser_(reference, payload) {
   const birthDate = resolveBirthDate_(reference, payload.birthDate);
   const phone = String(payload.phone || '').trim();
   const pin = String(payload.pin || '').trim();
+  const signatureDataUrl = String(payload.signatureDataUrl || '').trim();
 
   if (!pin) throw new Error('Debes crear una clave.');
+  if (!signatureDataUrl) throw new Error('Debes dibujar y guardar la firma para crear el usuario.');
 
   const now = new Date();
-  const signature = saveOrReuseSignature_(reference, null, payload.signatureDataUrl);
+  const signature = saveOrReuseSignature_(reference, null, signatureDataUrl);
 
   const userObject = {
     reference,
@@ -217,9 +219,12 @@ function updateExistingUser_(existingUser, payload) {
     url: existingUser.signatureUrl
   };
 
-  const wantsUpdateSignature = Boolean(payload.signatureDataUrl);
+  const incomingSignature = String(payload.signatureDataUrl || '').trim();
+  const wantsUpdateSignature = Boolean(incomingSignature);
   if (wantsUpdateSignature) {
-    signature = saveOrReuseSignature_(existingUser.reference, existingUser.signatureFileId, payload.signatureDataUrl);
+    signature = saveOrReuseSignature_(existingUser.reference, existingUser.signatureFileId, incomingSignature);
+  } else if (!signature.fileId && !signature.url) {
+    throw new Error('Este usuario no tiene firma registrada. Dibuja una firma para continuar.');
   }
 
   const updatedAt = new Date();
@@ -244,6 +249,9 @@ function appendLog_(user, reason, observation) {
   const formattedDate = Utilities.formatDate(now, CONFIG.TZ, 'yyyy-MM-dd');
   const formattedTime = Utilities.formatDate(now, CONFIG.TZ, 'HH:mm:ss');
 
+  const signatureUrl = String(user.signatureUrl || '').trim();
+  const signatureCellValue = signatureUrl ? buildImageFormula_(signatureUrl) : '';
+
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.LOGS_SHEET);
   sheet.appendRow([
     formattedDate,
@@ -252,9 +260,14 @@ function appendLog_(user, reason, observation) {
     user.fullName,
     user.reference,
     observation,
-    user.signatureUrl || '',
+    signatureCellValue,
     now.toISOString()
   ]);
+}
+
+function buildImageFormula_(url) {
+  const safeUrl = String(url || '').replace(/"/g, '""');
+  return `=IMAGE("${safeUrl}")`;
 }
 
 function getHistoryByReference_(reference) {
