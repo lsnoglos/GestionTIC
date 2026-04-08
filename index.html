@@ -325,8 +325,14 @@
         setGlobalLoading(true);
         google.script.run
           .withSuccessHandler(result => {
-            applyUserData(result);
-            setGlobalLoading(false);
+            try {
+              applyUserData(result);
+            } catch (err) {
+              const message = getErrorMessage(err, 'Ocurrió un error al procesar la búsqueda.');
+              setStatus('searchMsg', message, false);
+            } finally {
+              setGlobalLoading(false);
+            }
           })
           .withFailureHandler(err => {
             const message = getErrorMessage(err, 'Ocurrió un error al buscar el usuario.');
@@ -359,14 +365,20 @@
         setGlobalLoading(true);
         google.script.run
           .withSuccessHandler(res => {
-            setStatus('saveMsg', res.message, true);
-            paintHistory(res.history || []);
-            document.getElementById('observation').value = '';
-            document.getElementById('otherComment').value = '';
-            document.getElementById('otherCommentWrap').classList.add('hidden');
-            clearSign();
-            if (state.existingUser && state.allowProfileEdit) setProfileEditMode(false);
-            setGlobalLoading(false);
+            try {
+              setStatus('saveMsg', res.message, true);
+              paintHistory(res.history || []);
+              document.getElementById('observation').value = '';
+              document.getElementById('otherComment').value = '';
+              document.getElementById('otherCommentWrap').classList.add('hidden');
+              clearSign();
+              if (state.existingUser && state.allowProfileEdit) setProfileEditMode(false);
+            } catch (err) {
+              const message = getErrorMessage(err, 'Se guardó, pero hubo un error al actualizar la pantalla.');
+              setStatus('saveMsg', message, false);
+            } finally {
+              setGlobalLoading(false);
+            }
           })
           .withFailureHandler(err => {
             const message = getErrorMessage(err, 'Ocurrió un error al guardar el registro.');
