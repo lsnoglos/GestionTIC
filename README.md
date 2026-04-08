@@ -29,10 +29,19 @@ La app crea/ajusta automáticamente:
 
 - Si coincide con formato de cédula `000-000000-0000A`, se clasifica como **maestro**.
 - Si no coincide, se asume **alumno**.
+- Compatibilidad con `tipo_usuario` heredado en hoja `Usuarios`:
+  - `A`, `ALUMNO`, `ESTUDIANTE` => **alumno**
+  - `M`, `MAESTRO`, `DOCENTE`, `PROFESOR` => **maestro**
 - Fecha de nacimiento:
   - Maestro: derivada desde la cédula (bloque `ddmmaa`).
   - Alumno: ingresada manualmente.
 - Control anti-registros basura: cada referencia usa una **clave (pin)** que se exige en visitas futuras.
+
+## Carpeta de firmas en Drive
+
+- En `Code.gs`, configura `CONFIG.SIGNATURE_FOLDER_ID`.
+- Puedes poner **solo el ID** de la carpeta o **la URL completa** de Google Drive.
+- Si no se configura, la app usará (o creará) una carpeta llamada `Firmas_GestionTIC`.
 
 ## Archivos
 
