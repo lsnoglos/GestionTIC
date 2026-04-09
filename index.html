@@ -88,6 +88,14 @@
               <input id="fullName" />
             </div>
             <div>
+              <label>Género</label>
+              <select id="gender">
+                <option value="">Selecciona...</option>
+                <option value="M">M</option>
+                <option value="F">F</option>
+              </select>
+            </div>
+            <div>
               <label id="labelCareerArea">Carrera</label>
               <select id="careerArea"></select>
             </div>
@@ -119,10 +127,6 @@
             <label>Motivo</label>
             <select id="reason"></select>
           </div>
-          <div id="otherCommentWrap" class="hidden">
-            <label>Comentario</label>
-            <input id="otherComment" />
-          </div>
           <div>
             <label>Observación</label>
             <textarea id="observation" placeholder="Opcional"></textarea>
@@ -142,9 +146,9 @@
 
     <script>
       const REASON_MAP = {
-        'Soporte': ['Problema con impresora', 'Problema con la red', 'Problema con la PC', 'Otros'],
-        'Sistemas': ['Problemas con Aula virtual', 'Problemas por portal', 'Apoyo', 'Otros'],
-        'Otros': ['Limpieza de PC', 'Instalación de windows', 'Instalación de dispositivo', 'Instalación de impresora', 'Otros']
+        'Sistemas': ['Plataforma virtual', 'Portal de alumnos', 'Portal de maestros', 'SIAGES', 'SIRACI'],
+        'Soporte': ['Asistencia ofimática', 'Red', 'Impresora', 'Computadora'],
+        'Otros': ['Instalación de programa', 'Instalación de sistema', 'Instalación de red', 'Instalación de dispositivo', 'Otros']
       };
 
       const state = {
@@ -153,6 +157,7 @@
         hasDrawn: false,
         allowProfileEdit: false,
         signatureUrl: '',
+        signatureDraftUrl: '',
         careers: [],
         areas: []
       };
@@ -173,7 +178,11 @@
 
         const start = (x, y) => { drawing = true; ctx.beginPath(); ctx.moveTo(x, y); state.hasDrawn = true; };
         const move = (x, y) => { if (!drawing) return; ctx.lineTo(x, y); ctx.stroke(); state.hasDrawn = true; };
-        const end = () => { drawing = false; };
+        const end = () => {
+          drawing = false;
+          state.hasDrawn = isCanvasNotBlank();
+          state.signatureDraftUrl = state.hasDrawn ? canvas.toDataURL('image/png') : '';
+        };
 
         const pos = (e) => {
           const rect = canvas.getBoundingClientRect();
@@ -191,13 +200,11 @@
         canvas.addEventListener('touchmove', e => { e.preventDefault(); const p = pos(e); move(p.x, p.y); }, { passive: false });
         canvas.addEventListener('touchend', end);
 
-        window.addEventListener('resize', () => {
-          resizeCanvas();
-          state.hasDrawn = false;
-        });
+        window.addEventListener('resize', resizeCanvas);
       }
 
       function resizeCanvas() {
+        const previousImage = state.signatureDraftUrl || (canvas.width ? canvas.toDataURL('image/png') : '');
         const ratio = window.devicePixelRatio || 1;
         const width = canvas.clientWidth;
         const height = canvas.clientHeight;
@@ -206,11 +213,30 @@
         ctx = canvas.getContext('2d');
         ctx.scale(ratio, ratio);
         ctx.clearRect(0, 0, width, height);
+
+        if (previousImage) {
+          const img = new Image();
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0, width, height);
+            state.hasDrawn = isCanvasNotBlank();
+            state.signatureDraftUrl = state.hasDrawn ? canvas.toDataURL('image/png') : '';
+          };
+          img.src = previousImage;
+        }
       }
 
       function clearSign() {
         ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
         state.hasDrawn = false;
+        state.signatureDraftUrl = '';
+      }
+
+      function isCanvasNotBlank() {
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] !== 0) return true;
+        }
+        return false;
       }
 
       function setStatus(id, msg, ok = true) {
@@ -239,12 +265,15 @@
       function setProfileEditMode(enabled) {
         state.allowProfileEdit = enabled;
         const fullName = document.getElementById('fullName');
+        const gender = document.getElementById('gender');
         const careerArea = document.getElementById('careerArea');
 
         const shouldLock = state.existingUser && !enabled;
         fullName.disabled = shouldLock;
+        gender.disabled = shouldLock;
         careerArea.disabled = shouldLock;
         fullName.classList.toggle('field-disabled', shouldLock);
+        gender.classList.toggle('field-disabled', shouldLock);
         careerArea.classList.toggle('field-disabled', shouldLock);
 
         document.getElementById('btnEditProfile').textContent = enabled ? '✅ Listo' : '✏️ Editar';
@@ -278,9 +307,10 @@
         }
 
         items.forEach(it => {
+          const when = it.fechaHora || `${it.fecha || ''} ${it.hora || ''}`.trim();
           const div = document.createElement('div');
           div.className = 'history-item';
-          div.innerHTML = `<strong>${it.fecha} ${it.hora}</strong><br>${it.categoria} - ${it.motivo}<br><span class="muted">Obs: ${it.observacion || '---'}</span>`;
+          div.innerHTML = `<strong>${when}</strong><br>${it.categoria} - ${it.motivo}<br><span class="muted">Obs: ${it.observacion || '---'}</span>`;
           host.appendChild(div);
         });
       }
@@ -301,6 +331,7 @@
 
         if (result.found) {
           document.getElementById('fullName').value = result.user.fullName || '';
+          document.getElementById('gender').value = result.user.gender || '';
           document.getElementById('careerArea').value = result.user.careerArea || '';
           modeBadge.textContent = 'Usuario recurrente';
           editBtn.classList.remove('hidden');
@@ -309,6 +340,7 @@
           setStatus('searchMsg', 'Usuario encontrado. Puedes continuar con el motivo de asistencia.');
         } else {
           document.getElementById('fullName').value = '';
+          document.getElementById('gender').value = '';
           document.getElementById('careerArea').value = '';
           document.getElementById('pin').value = '';
           modeBadge.textContent = 'Usuario nuevo';
@@ -349,18 +381,18 @@
 
       function getSignaturePayload() {
         const shouldSend = !state.existingUser || state.allowProfileEdit;
-        return shouldSend && state.hasDrawn ? canvas.toDataURL('image/png') : '';
+        return shouldSend && isCanvasNotBlank() ? canvas.toDataURL('image/png') : '';
       }
 
       function saveVisit() {
         const payload = {
           reference: document.getElementById('reference').value.trim(),
           fullName: document.getElementById('fullName').value.trim(),
+          gender: document.getElementById('gender').value,
           careerArea: document.getElementById('careerArea').value,
           pin: document.getElementById('pin').value,
           category: document.getElementById('category').value,
           reason: document.getElementById('reason').value,
-          otherComment: document.getElementById('otherComment').value.trim(),
           observation: document.getElementById('observation').value.trim(),
           signatureDataUrl: getSignaturePayload(),
           allowProfileEdit: state.allowProfileEdit
@@ -371,11 +403,10 @@
         google.script.run
           .withSuccessHandler(res => {
             try {
-              setStatus('saveMsg', res.message, true);
+              const successMessage = res && res.message ? res.message : 'Registro guardado correctamente.';
+              setStatus('saveMsg', successMessage, true);
               paintHistory(res.history || []);
               document.getElementById('observation').value = '';
-              document.getElementById('otherComment').value = '';
-              document.getElementById('otherCommentWrap').classList.add('hidden');
               clearSign();
               if (state.existingUser && state.allowProfileEdit) setProfileEditMode(false);
             } catch (err) {
@@ -397,8 +428,6 @@
         const category = document.getElementById('category').value;
         const reasons = REASON_MAP[category] || [];
         fillSelect(document.getElementById('reason'), reasons);
-        document.getElementById('otherCommentWrap').classList.add('hidden');
-        document.getElementById('otherComment').value = '';
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -423,9 +452,6 @@
           setProfileEditMode(!state.allowProfileEdit);
         });
         document.getElementById('category').addEventListener('change', loadReasonsByCategory);
-        document.getElementById('reason').addEventListener('change', e => {
-          document.getElementById('otherCommentWrap').classList.toggle('hidden', e.target.value !== 'Otros');
-        });
       });
     </script>
   </body>

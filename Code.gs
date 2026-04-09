@@ -38,6 +38,7 @@ const USER_HEADERS = [
   'referencia',
   'tipo_usuario',
   'nombre_apellido',
+  'genero',
   'carrera_area',
   'pin',
   'firma_file_id',
@@ -46,17 +47,7 @@ const USER_HEADERS = [
   'fecha_actualizacion'
 ];
 
-const LOG_HEADERS = [
-  'usuario',
-  'Nombre',
-  'Motivo',
-  'Observación',
-  'Comentarios',
-  'Área',
-  'Firma',
-  'fecha',
-  'hora'
-];
+const LOG_HEADERS = ['Fecha', 'Nombre y apellido', 'Género', 'Referencia', 'Motivo', 'Observación', 'Firma'];
 
 function doGet() {
   initializeSheets_();
@@ -106,12 +97,8 @@ function saveVisit(payload) {
 
     const category = String(payload.category || '').trim();
     const reason = String(payload.reason || '').trim();
-    const otherComment = String(payload.otherComment || '').trim();
     if (!category) throw new Error('Debes seleccionar la categoría.');
     if (!reason) throw new Error('Debes seleccionar el motivo de asistencia.');
-    if (reason === 'Otros' && !otherComment) {
-      throw new Error('Debes escribir el comentario para "Otros".');
-    }
 
     const observation = String(payload.observation || '').trim();
     const inputPin = String(payload.pin || '').trim();
@@ -129,10 +116,13 @@ function saveVisit(payload) {
       resolvedUser = createUser_(cleanRef, payload, inputPin);
     }
 
+    if (!normalizeGender_(resolvedUser.gender)) {
+      throw new Error('Este usuario no tiene género registrado. Activa edición y selecciona M o F.');
+    }
+
     appendLog_(resolvedUser, {
       category,
       reason,
-      otherComment,
       observation
     });
 
@@ -168,6 +158,8 @@ function ensureSheetHeaders_(ss, sheetName, headers) {
 function createUser_(reference, payload, inputPin) {
   const cleanName = String(payload.fullName || '').trim();
   if (!cleanName) throw new Error('Debes ingresar el nombre y apellido.');
+  const gender = normalizeGender_(payload.gender);
+  if (!gender) throw new Error('Debes seleccionar el género (M o F).');
 
   const userType = inferUserType_(reference);
   const careerArea = String(payload.careerArea || '').trim();
@@ -189,6 +181,7 @@ function createUser_(reference, payload, inputPin) {
     reference,
     userType,
     fullName: cleanName,
+    gender,
     careerArea,
     pin: inputPin,
     signatureFileId: signature.fileId,
@@ -202,6 +195,7 @@ function createUser_(reference, payload, inputPin) {
     userObject.reference,
     userObject.userType,
     userObject.fullName,
+    userObject.gender,
     userObject.careerArea,
     userObject.pin,
     userObject.signatureFileId,
@@ -240,32 +234,35 @@ function updateExistingUser_(existingUser, payload) {
 
   if (allowProfileEdit) {
     const incomingName = String(payload.fullName || '').trim();
+    const incomingGender = normalizeGender_(payload.gender);
     const incomingCareerArea = String(payload.careerArea || '').trim();
 
     if (!incomingName) throw new Error('Debes ingresar el nombre y apellido.');
+    if (!incomingGender) throw new Error('Debes seleccionar el género (M o F).');
     if (!incomingCareerArea) throw new Error('Debes seleccionar carrera o área.');
     if (!isValidCareerArea_(latest.userType, incomingCareerArea)) {
       throw new Error('La carrera o área seleccionada no es válida.');
     }
 
     latest.fullName = incomingName;
+    latest.gender = incomingGender;
     latest.careerArea = incomingCareerArea;
 
     sheet.getRange(row, 3).setValue(latest.fullName);
-    sheet.getRange(row, 4).setValue(latest.careerArea);
+    sheet.getRange(row, 4).setValue(latest.gender);
+    sheet.getRange(row, 5).setValue(latest.careerArea);
   }
 
-  sheet.getRange(row, 6).setValue(latest.signatureFileId || '');
-  sheet.getRange(row, 7).setValue(latest.signatureUrl || '');
-  sheet.getRange(row, 9).setValue(updatedAt);
+  sheet.getRange(row, 7).setValue(latest.signatureFileId || '');
+  sheet.getRange(row, 8).setValue(latest.signatureUrl || '');
+  sheet.getRange(row, 10).setValue(updatedAt);
 
   return latest;
 }
 
 function appendLog_(user, details) {
   const now = new Date();
-  const formattedDate = Utilities.formatDate(now, CONFIG.TZ, 'yyyy-MM-dd');
-  const formattedTime = Utilities.formatDate(now, CONFIG.TZ, 'HH:mm:ss');
+  const formattedDateTime = Utilities.formatDate(now, CONFIG.TZ, 'yyyy-MM-dd HH:mm:ss');
 
   const signatureUrl = String(user.signatureUrl || '').trim();
   const signatureCellValue = signatureUrl ? buildImageFormula_(signatureUrl) : '';
@@ -275,15 +272,13 @@ function appendLog_(user, details) {
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(categorySheet);
   sheet.appendRow([
-    user.reference,
+    formattedDateTime,
     user.fullName,
+    user.gender || '',
+    user.reference,
     details.reason,
     details.observation,
-    details.reason === 'Otros' ? details.otherComment : '',
-    user.careerArea,
-    signatureCellValue,
-    formattedDate,
-    formattedTime
+    signatureCellValue
   ]);
 }
 
@@ -319,12 +314,15 @@ function getHistoryByReferenceFromCategorySheets_(reference) {
     if (rows.length <= 1) return;
 
     const headers = rows.shift().map(h => String(h || '').trim());
-    const idxRef = headers.indexOf('usuario');
+    const idxRef = headers.indexOf('Referencia') !== -1 ? headers.indexOf('Referencia') : headers.indexOf('usuario');
+    const idxDateTime = headers.indexOf('Fecha');
     const idxDate = headers.indexOf('fecha');
     const idxTime = headers.indexOf('hora');
     const idxReason = headers.indexOf('Motivo');
     const idxComment = headers.indexOf('Comentarios');
     const idxObs = headers.indexOf('Observación');
+
+    if (idxRef === -1 || idxReason === -1) return;
 
     rows
       .filter(r => String(r[idxRef] || '').trim().toUpperCase() === reference.toUpperCase())
@@ -332,9 +330,11 @@ function getHistoryByReferenceFromCategorySheets_(reference) {
         const reason = String(r[idxReason] || '');
         const extraComment = String(r[idxComment] || '');
         const reasonText = reason === 'Otros' && extraComment ? `${reason}: ${extraComment}` : reason;
+        const dateTimeValue = idxDateTime !== -1
+          ? r[idxDateTime]
+          : `${String(r[idxDate] || '').trim()} ${String(r[idxTime] || '').trim()}`.trim();
         allItems.push({
-          fecha: r[idxDate],
-          hora: r[idxTime],
+          fechaHora: dateTimeValue,
           categoria: sheetName,
           motivo: reasonText,
           observacion: r[idxObs]
@@ -388,6 +388,7 @@ function findUserByReference_(reference) {
     reference: headers.indexOf('referencia'),
     userType: headers.indexOf('tipo_usuario'),
     fullName: headers.indexOf('nombre_apellido'),
+    gender: headers.indexOf('genero'),
     careerArea: headers.indexOf('carrera_area'),
     pin: headers.indexOf('pin'),
     signatureFileId: headers.indexOf('firma_file_id'),
@@ -404,6 +405,7 @@ function findUserByReference_(reference) {
     reference: String(row[idx.reference] || ''),
     userType: String(row[idx.userType] || ''),
     fullName: String(row[idx.fullName] || ''),
+    gender: String(row[idx.gender] || ''),
     careerArea: String(row[idx.careerArea] || ''),
     pin: String(row[idx.pin] || ''),
     signatureFileId: String(row[idx.signatureFileId] || ''),
@@ -418,6 +420,11 @@ function inferUserType_(reference) {
 
 function sanitizeReference_(reference) {
   return String(reference || '').trim().toUpperCase();
+}
+
+function normalizeGender_(value) {
+  const gender = String(value || '').trim().toUpperCase();
+  return gender === 'M' || gender === 'F' ? gender : '';
 }
 
 function isInstitutionalEmail_(value) {
