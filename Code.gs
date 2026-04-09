@@ -314,14 +314,15 @@ function getHistoryByReferenceFromCategorySheets_(reference) {
     const rows = sheet.getDataRange().getValues();
     if (rows.length <= 1) return;
 
-    const headers = rows.shift().map(h => String(h || '').trim());
-    const idxRef = headers.indexOf('Referencia') !== -1 ? headers.indexOf('Referencia') : headers.indexOf('usuario');
-    const idxDateTime = headers.indexOf('Fecha');
-    const idxDate = headers.indexOf('fecha');
-    const idxTime = headers.indexOf('hora');
-    const idxReason = headers.indexOf('Motivo');
-    const idxComment = headers.indexOf('Comentarios');
-    const idxObs = headers.indexOf('Observación');
+    const headers = rows.shift();
+    const headerMap = buildHeaderIndexMap_(headers);
+    const idxRef = findHeaderIndex_(headerMap, ['Referencia', 'referencia', 'usuario']);
+    const idxDateTime = findHeaderIndex_(headerMap, ['Fecha', 'fecha', 'fecha_hora', 'datetime']);
+    const idxDate = findHeaderIndex_(headerMap, ['fecha', 'date']);
+    const idxTime = findHeaderIndex_(headerMap, ['hora', 'time']);
+    const idxReason = findHeaderIndex_(headerMap, ['Motivo', 'motivo', 'razon', 'reason']);
+    const idxComment = findHeaderIndex_(headerMap, ['Comentarios', 'comentarios', 'comentario_otros', 'comentario']);
+    const idxObs = findHeaderIndex_(headerMap, ['Observación', 'observacion', 'obs']);
 
     if (idxRef === -1 || idxReason === -1) return;
 
@@ -354,14 +355,15 @@ function getLegacyLogHistoryByReference_(reference) {
   const rows = sheet.getDataRange().getValues();
   if (rows.length <= 1) return [];
 
-  const headers = rows.shift().map(h => String(h || '').trim());
-  const idxRef = headers.indexOf('referencia');
-  const idxDate = headers.indexOf('fecha');
-  const idxTime = headers.indexOf('hora');
-  const idxCategory = headers.indexOf('categoria');
-  const idxReason = headers.indexOf('motivo');
-  const idxComment = headers.indexOf('comentario_otros');
-  const idxObs = headers.indexOf('observacion');
+  const headers = rows.shift();
+  const headerMap = buildHeaderIndexMap_(headers);
+  const idxRef = findHeaderIndex_(headerMap, ['referencia', 'usuario']);
+  const idxDate = findHeaderIndex_(headerMap, ['fecha', 'date']);
+  const idxTime = findHeaderIndex_(headerMap, ['hora', 'time']);
+  const idxCategory = findHeaderIndex_(headerMap, ['categoria', 'categoría', 'category']);
+  const idxReason = findHeaderIndex_(headerMap, ['motivo', 'razon', 'reason']);
+  const idxComment = findHeaderIndex_(headerMap, ['comentario_otros', 'comentarios', 'comentario']);
+  const idxObs = findHeaderIndex_(headerMap, ['observacion', 'observación', 'obs']);
 
   return rows
     .filter(r => normalizeReferenceKey_(r[idxRef]) === normalizedReference)
@@ -380,28 +382,48 @@ function getLegacyLogHistoryByReference_(reference) {
     .reverse();
 }
 
+
+function buildHeaderIndexMap_(headers) {
+  const map = {};
+  headers.forEach((h, i) => {
+    map[normalizeHeaderKey_(h)] = i;
+  });
+  return map;
+}
+
+function findHeaderIndex_(headerMap, aliases) {
+  for (let i = 0; i < aliases.length; i += 1) {
+    const idx = headerMap[normalizeHeaderKey_(aliases[i])];
+    if (typeof idx === 'number') return idx;
+  }
+  return -1;
+}
+
+function normalizeHeaderKey_(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '_');
+}
+
 function findUserByReference_(reference) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.USERS_SHEET);
   const rows = sheet.getDataRange().getValues();
   if (rows.length <= 1) return null;
 
-  const headers = rows.shift().map(h => String(h || '').trim());
-  const getHeaderIndex = names => {
-    for (let i = 0; i < names.length; i += 1) {
-      const idx = headers.indexOf(names[i]);
-      if (idx !== -1) return idx;
-    }
-    return -1;
-  };
+  const headers = rows.shift();
+  const headerMap = buildHeaderIndexMap_(headers);
   const idx = {
-    reference: getHeaderIndex(['referencia', 'usuario']),
-    userType: getHeaderIndex(['tipo_usuario']),
-    fullName: getHeaderIndex(['nombre_apellido']),
-    gender: getHeaderIndex(['genero']),
-    careerArea: getHeaderIndex(['carrera_area']),
-    pin: getHeaderIndex(['pin']),
-    signatureFileId: getHeaderIndex(['firma_file_id']),
-    signatureUrl: getHeaderIndex(['firma_url'])
+    reference: findHeaderIndex_(headerMap, ['referencia', 'Referencia', 'usuario']),
+    userType: findHeaderIndex_(headerMap, ['tipo_usuario', 'tipo de usuario']),
+    fullName: findHeaderIndex_(headerMap, ['nombre_apellido', 'nombre y apellido']),
+    gender: findHeaderIndex_(headerMap, ['genero', 'género']),
+    careerArea: findHeaderIndex_(headerMap, ['carrera_area', 'carrera/area', 'carrera_area']),
+    pin: findHeaderIndex_(headerMap, ['pin', 'clave', 'contraseña', 'contrasena']),
+    signatureFileId: findHeaderIndex_(headerMap, ['firma_file_id', 'firma id', 'firma_file']),
+    signatureUrl: findHeaderIndex_(headerMap, ['firma_url', 'firma url'])
   };
 
   if (idx.reference === -1) return null;
