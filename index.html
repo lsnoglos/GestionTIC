@@ -252,6 +252,40 @@
         return fallback;
       }
 
+      function normalizeSearchResult(result) {
+        if (!result || typeof result !== 'object') {
+          return {
+            found: false,
+            reference: document.getElementById('reference').value.trim(),
+            inferredType: inferTypeFromReference(),
+            user: null,
+            history: []
+          };
+        }
+        return {
+          found: Boolean(result.found),
+          reference: result.reference || document.getElementById('reference').value.trim(),
+          inferredType: result.inferredType || inferTypeFromReference(),
+          user: result.user || null,
+          history: Array.isArray(result.history) ? result.history : []
+        };
+      }
+
+      function normalizeSaveResult(result) {
+        if (!result || typeof result !== 'object') {
+          return { message: 'Registro guardado correctamente.', history: [] };
+        }
+        return {
+          message: result.message || 'Registro guardado correctamente.',
+          history: Array.isArray(result.history) ? result.history : []
+        };
+      }
+
+      function inferTypeFromReference() {
+        const ref = document.getElementById('reference').value.trim();
+        return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(ref) ? 'personal' : 'alumno';
+      }
+
       function fillSelect(el, values, label = 'Selecciona...') {
         el.innerHTML = `<option value="">${label}</option>`;
         values.forEach(value => {
@@ -316,26 +350,28 @@
       }
 
       function applyUserData(result) {
+        const safeResult = normalizeSearchResult(result);
+
         document.getElementById('userCard').classList.remove('hidden');
         document.getElementById('visitCard').classList.remove('hidden');
         document.getElementById('historyCard').classList.remove('hidden');
         document.getElementById('userDetails').classList.remove('hidden');
 
-        state.existingUser = result.found;
-        state.inferredType = result.found ? result.user.userType : result.inferredType;
+        state.existingUser = safeResult.found;
+        state.inferredType = safeResult.found && safeResult.user ? safeResult.user.userType : safeResult.inferredType;
         applyTypeUI(state.inferredType);
 
         const modeBadge = document.getElementById('modeBadge');
         const editBtn = document.getElementById('btnEditProfile');
-        document.getElementById('searchedUser').value = result.reference || document.getElementById('reference').value.trim();
+        document.getElementById('searchedUser').value = safeResult.reference;
 
-        if (result.found) {
-          document.getElementById('fullName').value = result.user.fullName || '';
-          document.getElementById('gender').value = result.user.gender || '';
-          document.getElementById('careerArea').value = result.user.careerArea || '';
+        if (safeResult.found && safeResult.user) {
+          document.getElementById('fullName').value = safeResult.user.fullName || '';
+          document.getElementById('gender').value = safeResult.user.gender || '';
+          document.getElementById('careerArea').value = safeResult.user.careerArea || '';
           modeBadge.textContent = 'Usuario recurrente';
           editBtn.classList.remove('hidden');
-          state.signatureUrl = result.user.signatureUrl || '';
+          state.signatureUrl = safeResult.user.signatureUrl || '';
           document.getElementById('signaturePreview').src = state.signatureUrl;
           setStatus('searchMsg', 'Usuario encontrado. Puedes continuar con el motivo de asistencia.');
         } else {
@@ -350,8 +386,8 @@
           setStatus('searchMsg', 'Usuario nuevo. Completa nombre, carrera/área, firma y clave.');
         }
 
-        setProfileEditMode(!result.found);
-        paintHistory(result.history || []);
+        setProfileEditMode(!safeResult.found);
+        paintHistory(safeResult.history);
       }
 
       function searchUser() {
@@ -403,9 +439,9 @@
         google.script.run
           .withSuccessHandler(res => {
             try {
-              const successMessage = res && res.message ? res.message : 'Registro guardado correctamente.';
-              setStatus('saveMsg', successMessage, true);
-              paintHistory(res.history || []);
+              const safeRes = normalizeSaveResult(res);
+              setStatus('saveMsg', safeRes.message, true);
+              paintHistory(safeRes.history);
               document.getElementById('observation').value = '';
               clearSign();
               if (state.existingUser && state.allowProfileEdit) setProfileEditMode(false);
