@@ -305,6 +305,7 @@ function getHistoryByReference_(reference) {
 function getHistoryByReferenceFromCategorySheets_(reference) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const allItems = [];
+  const normalizedReference = normalizeReferenceKey_(reference);
 
   CONFIG.LOG_SHEETS.forEach(sheetName => {
     const sheet = ss.getSheetByName(sheetName);
@@ -325,7 +326,7 @@ function getHistoryByReferenceFromCategorySheets_(reference) {
     if (idxRef === -1 || idxReason === -1) return;
 
     rows
-      .filter(r => String(r[idxRef] || '').trim().toUpperCase() === reference.toUpperCase())
+      .filter(r => normalizeReferenceKey_(r[idxRef]) === normalizedReference)
       .forEach(r => {
         const reason = String(r[idxReason] || '');
         const extraComment = String(r[idxComment] || '');
@@ -348,6 +349,7 @@ function getHistoryByReferenceFromCategorySheets_(reference) {
 function getLegacyLogHistoryByReference_(reference) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Registros');
   if (!sheet) return [];
+  const normalizedReference = normalizeReferenceKey_(reference);
 
   const rows = sheet.getDataRange().getValues();
   if (rows.length <= 1) return [];
@@ -362,7 +364,7 @@ function getLegacyLogHistoryByReference_(reference) {
   const idxObs = headers.indexOf('observacion');
 
   return rows
-    .filter(r => String(r[idxRef] || '').trim().toUpperCase() === reference.toUpperCase())
+    .filter(r => normalizeReferenceKey_(r[idxRef]) === normalizedReference)
     .map(r => {
       const reason = String(r[idxReason] || '');
       const extraComment = String(r[idxComment] || '');
@@ -404,9 +406,8 @@ function findUserByReference_(reference) {
 
   if (idx.reference === -1) return null;
 
-  const rowIndex = rows.findIndex(
-    r => String(r[idx.reference] || '').trim().toUpperCase() === reference.toUpperCase()
-  );
+  const normalizedReference = normalizeReferenceKey_(reference);
+  const rowIndex = rows.findIndex(r => normalizeReferenceKey_(r[idx.reference]) === normalizedReference);
   if (rowIndex === -1) return null;
 
   const row = rows[rowIndex];
@@ -429,6 +430,12 @@ function inferUserType_(reference) {
 
 function sanitizeReference_(reference) {
   return String(reference || '').trim().toUpperCase();
+}
+
+function normalizeReferenceKey_(reference) {
+  return sanitizeReference_(reference)
+    .replace(/^'+/, '')
+    .replace(/\s+/g, '');
 }
 
 function normalizeGender_(value) {

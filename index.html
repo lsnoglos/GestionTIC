@@ -37,6 +37,8 @@
       details { border:1px solid #d6deed; border-radius:8px; padding:8px 10px; background:#fcfdff; }
       details > summary { cursor:pointer; font-weight:700; }
       .field-disabled { opacity:.75; }
+      .blocked-label { font-size:12px; font-weight:700; color:#b42318; margin-left:6px; }
+      .input-error { border-color:#d92d20 !important; box-shadow:0 0 0 2px rgba(217,45,32,.12); }
     </style>
   </head>
   <body>
@@ -77,42 +79,45 @@
               <input id="searchedUser" disabled class="field-disabled" />
             </div>
             <div>
-              <label>Contraseña de acceso / nueva</label>
+              <label>Contraseña <span id="pinBlockedTag" class="blocked-label hidden">BLOQUEADA</span></label>
               <input id="pin" type="password" />
             </div>
           </div>
 
-          <div class="row" style="margin-top:10px;">
-            <div>
-              <label>Nombre y apellido</label>
-              <input id="fullName" />
+          <details id="profileAccordion" style="margin-top:12px;">
+            <summary>Perfil de usuario</summary>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Nombre y apellido</label>
+                <input id="fullName" />
+              </div>
+              <div>
+                <label>Género</label>
+                <select id="gender">
+                  <option value="">Selecciona...</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+              <div>
+                <label id="labelCareerArea">Carrera</label>
+                <select id="careerArea"></select>
+              </div>
             </div>
-            <div>
-              <label>Género</label>
-              <select id="gender">
-                <option value="">Selecciona...</option>
-                <option value="M">M</option>
-                <option value="F">F</option>
-              </select>
-            </div>
-            <div>
-              <label id="labelCareerArea">Carrera</label>
-              <select id="careerArea"></select>
-            </div>
-          </div>
 
-          <h3 style="margin-top:16px;">Firma</h3>
-          <div id="signaturePreviewWrap" class="hidden">
-            <p class="muted">Firma registrada:</p>
-            <img id="signaturePreview" class="signature-preview" alt="Firma registrada" />
-          </div>
-          <div id="signatureCanvasWrap" class="hidden">
-            <p class="muted">Dibuja firma nueva si necesitas actualizarla.</p>
-            <canvas id="signatureCanvas"></canvas>
-            <div class="inline" style="margin-top:8px;">
-              <button id="btnClearSign" type="button" class="secondary">Limpiar firma</button>
+            <h3 style="margin-top:16px;">Firma</h3>
+            <div id="signaturePreviewWrap" class="hidden">
+              <p class="muted">Firma registrada:</p>
+              <img id="signaturePreview" class="signature-preview" alt="Firma registrada" />
             </div>
-          </div>
+            <div id="signatureCanvasWrap" class="hidden">
+              <p class="muted">Dibuja firma nueva si necesitas actualizarla.</p>
+              <canvas id="signatureCanvas"></canvas>
+              <div class="inline" style="margin-top:8px;">
+                <button id="btnClearSign" type="button" class="secondary">Limpiar firma</button>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -139,8 +144,10 @@
       </div>
 
       <div id="historyCard" class="card hidden">
-        <h2>Histórico de asistencias</h2>
-        <div id="historyList"></div>
+        <details>
+          <summary>Histórico de asistencias</summary>
+          <div id="historyList" style="margin-top:10px;"></div>
+        </details>
       </div>
     </div>
 
@@ -319,6 +326,12 @@
         if (!enabled) clearSign();
       }
 
+      function setPinError(enabled) {
+        const pinInput = document.getElementById('pin');
+        pinInput.classList.toggle('input-error', Boolean(enabled));
+        if (enabled) pinInput.focus();
+      }
+
       function applyTypeUI(type) {
         const isStudent = type === 'alumno';
         const label = document.getElementById('labelCareerArea');
@@ -363,14 +376,19 @@
 
         const modeBadge = document.getElementById('modeBadge');
         const editBtn = document.getElementById('btnEditProfile');
+        const pinBlockedTag = document.getElementById('pinBlockedTag');
+        const profileAccordion = document.getElementById('profileAccordion');
         document.getElementById('searchedUser').value = safeResult.reference;
+        setPinError(false);
 
         if (safeResult.found && safeResult.user) {
           document.getElementById('fullName').value = safeResult.user.fullName || '';
           document.getElementById('gender').value = safeResult.user.gender || '';
           document.getElementById('careerArea').value = safeResult.user.careerArea || '';
-          modeBadge.textContent = 'Usuario recurrente';
-          editBtn.classList.remove('hidden');
+          modeBadge.textContent = 'Usuario existente (bloqueado)';
+          editBtn.classList.add('hidden');
+          pinBlockedTag.classList.remove('hidden');
+          profileAccordion.open = false;
           state.signatureUrl = safeResult.user.signatureUrl || '';
           document.getElementById('signaturePreview').src = state.signatureUrl;
           setStatus('searchMsg', 'Usuario encontrado. Puedes continuar con el motivo de asistencia.');
@@ -381,6 +399,8 @@
           document.getElementById('pin').value = '';
           modeBadge.textContent = 'Usuario nuevo';
           editBtn.classList.add('hidden');
+          pinBlockedTag.classList.add('hidden');
+          profileAccordion.open = true;
           state.signatureUrl = '';
           document.getElementById('signaturePreview').removeAttribute('src');
           setStatus('searchMsg', 'Usuario nuevo. Completa nombre, carrera/área, firma y clave.');
@@ -421,6 +441,7 @@
       }
 
       function saveVisit() {
+        setPinError(false);
         const payload = {
           reference: document.getElementById('reference').value.trim(),
           fullName: document.getElementById('fullName').value.trim(),
@@ -454,6 +475,7 @@
           })
           .withFailureHandler(err => {
             const message = getErrorMessage(err, 'Ocurrió un error al guardar el registro.');
+            if (/clave|contraseñ|pin/i.test(message)) setPinError(true);
             setStatus('saveMsg', message, false);
             setGlobalLoading(false);
           })
