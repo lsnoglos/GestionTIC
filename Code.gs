@@ -384,16 +384,25 @@ function findUserByReference_(reference) {
   if (rows.length <= 1) return null;
 
   const headers = rows.shift().map(h => String(h || '').trim());
-  const idx = {
-    reference: headers.indexOf('referencia'),
-    userType: headers.indexOf('tipo_usuario'),
-    fullName: headers.indexOf('nombre_apellido'),
-    gender: headers.indexOf('genero'),
-    careerArea: headers.indexOf('carrera_area'),
-    pin: headers.indexOf('pin'),
-    signatureFileId: headers.indexOf('firma_file_id'),
-    signatureUrl: headers.indexOf('firma_url')
+  const getHeaderIndex = names => {
+    for (let i = 0; i < names.length; i += 1) {
+      const idx = headers.indexOf(names[i]);
+      if (idx !== -1) return idx;
+    }
+    return -1;
   };
+  const idx = {
+    reference: getHeaderIndex(['referencia', 'usuario']),
+    userType: getHeaderIndex(['tipo_usuario']),
+    fullName: getHeaderIndex(['nombre_apellido']),
+    gender: getHeaderIndex(['genero']),
+    careerArea: getHeaderIndex(['carrera_area']),
+    pin: getHeaderIndex(['pin']),
+    signatureFileId: getHeaderIndex(['firma_file_id']),
+    signatureUrl: getHeaderIndex(['firma_url'])
+  };
+
+  if (idx.reference === -1) return null;
 
   const rowIndex = rows.findIndex(
     r => String(r[idx.reference] || '').trim().toUpperCase() === reference.toUpperCase()
