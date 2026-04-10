@@ -432,7 +432,7 @@
             setStatus('searchMsg', message, false);
             setGlobalLoading(false);
           })
-          .findUserAndHistory(ref);
+          .findUserAndHistory(ref.trim().toUpperCase());
       }
 
       function getSignaturePayload() {
@@ -443,7 +443,7 @@
       function saveVisit() {
         setPinError(false);
         const payload = {
-          reference: document.getElementById('reference').value.trim(),
+          reference: document.getElementById('searchedUser').value.trim(),
           fullName: document.getElementById('fullName').value.trim(),
           gender: document.getElementById('gender').value,
           careerArea: document.getElementById('careerArea').value,
