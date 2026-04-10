@@ -428,8 +428,8 @@ function findUserByReference_(reference) {
 
   const referenceColumn = idx.reference !== -1 ? idx.reference : 0;
 
-  const normalizedReference = normalizeReferenceKey_(reference);
-  const rowIndex = rows.findIndex(r => normalizeReferenceKey_(r[referenceColumn]) === normalizedReference);
+  const normalizedReference = normalizeReferenceKey_(String(reference));
+  const rowIndex = rows.findIndex(r => normalizeReferenceKey_(String(r[referenceColumn])) === normalizedReference);
   if (rowIndex === -1) return null;
 
   const row = rows[rowIndex];
@@ -453,10 +453,6 @@ function inferUserType_(reference) {
 function sanitizeReference_(reference) {
   if (reference === null || reference === undefined) return '';
 
-  if (typeof reference === 'number' && isFinite(reference)) {
-    return String(reference).trim().toUpperCase();
-  }
-
   return String(reference)
     .replace(/\u00A0/g, ' ')
     .trim()
@@ -464,7 +460,9 @@ function sanitizeReference_(reference) {
 }
 
 function normalizeReferenceKey_(reference) {
-  return sanitizeReference_(reference)
+  return String(reference || '')
+    .trim()
+    .toUpperCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/^'+/, '')
