@@ -426,10 +426,10 @@ function findUserByReference_(reference) {
     signatureUrl: findHeaderIndex_(headerMap, ['firma_url', 'firma url'])
   };
 
-  if (idx.reference === -1) return null;
+  const referenceColumn = idx.reference !== -1 ? idx.reference : 0;
 
   const normalizedReference = normalizeReferenceKey_(reference);
-  const rowIndex = rows.findIndex(r => normalizeReferenceKey_(r[idx.reference]) === normalizedReference);
+  const rowIndex = rows.findIndex(r => normalizeReferenceKey_(r[referenceColumn]) === normalizedReference);
   if (rowIndex === -1) return null;
 
   const row = rows[rowIndex];
@@ -451,12 +451,24 @@ function inferUserType_(reference) {
 }
 
 function sanitizeReference_(reference) {
-  return String(reference || '').trim().toUpperCase();
+  if (reference === null || reference === undefined) return '';
+
+  if (typeof reference === 'number' && isFinite(reference)) {
+    return String(reference).trim().toUpperCase();
+  }
+
+  return String(reference)
+    .replace(/\u00A0/g, ' ')
+    .trim()
+    .toUpperCase();
 }
 
 function normalizeReferenceKey_(reference) {
   return sanitizeReference_(reference)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/^'+/, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/\s+/g, '');
 }
 
