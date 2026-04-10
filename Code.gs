@@ -3,6 +3,7 @@ const CONFIG = {
   USERS_SHEET: 'Usuarios',
   LOG_SHEETS: ['Soporte', 'Sistemas', 'Otros'],
   TZ: Session.getScriptTimeZone() || 'America/Managua',
+  DEFAULT_EMAIL_DOMAIN: 'UCC.EDU.NI',
   SIGNATURE_FOLDER_ID: '10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-',
   CAREERS: [
     'Ing. de Sistemas',
@@ -447,20 +448,22 @@ function findUserByReference_(reference) {
 }
 
 function inferUserType_(reference) {
-  return isInstitutionalEmail_(reference) ? 'personal' : 'alumno';
+  return looksLikeInstitutionalEmail_(reference) ? 'personal' : 'alumno';
 }
 
 function sanitizeReference_(reference) {
   if (reference === null || reference === undefined) return '';
 
-  return String(reference)
+  const raw = String(reference)
     .replace(/\u00A0/g, ' ')
     .trim()
     .toUpperCase();
+
+  return normalizeInstitutionalEmail_(raw);
 }
 
 function normalizeReferenceKey_(reference) {
-  return String(reference || '')
+  return normalizeInstitutionalEmail_(String(reference || ''))
     .trim()
     .toUpperCase()
     .normalize('NFD')
@@ -477,6 +480,30 @@ function normalizeGender_(value) {
 
 function isInstitutionalEmail_(value) {
   return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(String(value || '').trim());
+}
+
+function looksLikeInstitutionalEmail_(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return false;
+  if (isInstitutionalEmail_(raw)) return true;
+  return /^[A-Z0-9._%+-]+@$/i.test(raw);
+}
+
+function normalizeInstitutionalEmail_(value) {
+  const raw = String(value || '')
+    .replace(/\u00A0/g, ' ')
+    .trim()
+    .toUpperCase();
+
+  if (!raw.includes('@')) return raw;
+
+  const parts = raw.split('@');
+  const localPart = String(parts.shift() || '').trim();
+  const domainPart = String(parts.join('@') || '').trim();
+  if (!localPart) return raw;
+
+  if (!domainPart) return `${localPart}@${CONFIG.DEFAULT_EMAIL_DOMAIN}`;
+  return `${localPart}@${domainPart}`;
 }
 
 function isValidCareerArea_(userType, value) {

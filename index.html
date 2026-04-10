@@ -290,7 +290,7 @@
 
       function inferTypeFromReference() {
         const ref = document.getElementById('reference').value.trim();
-        return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(ref) ? 'personal' : 'alumno';
+        return /^[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})?$/i.test(ref) ? 'personal' : 'alumno';
       }
 
       function fillSelect(el, values, label = 'Selecciona...') {
