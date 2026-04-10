@@ -70,10 +70,11 @@ function getAppBootstrap() {
 
 function findUserAndHistory(reference) {
   initializeSheets_();
-  const cleanRef = sanitizeReference_(reference);
+  const cleanRef = normalizeInputReference(reference);
   if (!cleanRef) {
     return { found: false, error: 'Debes escribir un usuario.' };
   }
+  Logger.log('BUSCAR: ' + cleanRef);
 
   const user = findUserByReference_(cleanRef);
   const history = getHistoryByReference_(cleanRef);
@@ -93,8 +94,9 @@ function saveVisit(payload) {
   lock.waitLock(30000);
 
   try {
-    const cleanRef = sanitizeReference_(payload.reference);
+    const cleanRef = normalizeInputReference(payload.reference);
     if (!cleanRef) throw new Error('Usuario inválido.');
+    Logger.log('SAVE: ' + cleanRef);
 
     const category = String(payload.category || '').trim();
     const reason = String(payload.reason || '').trim();
@@ -429,7 +431,7 @@ function findUserByReference_(reference) {
 
   const referenceColumn = idx.reference !== -1 ? idx.reference : 0;
 
-  const normalizedReference = normalizeReferenceKey_(String(reference));
+  const normalizedReference = normalizeReferenceKey_(reference);
   const rowIndex = rows.findIndex(r => normalizeReferenceKey_(String(r[referenceColumn])) === normalizedReference);
   if (rowIndex === -1) return null;
 
@@ -445,6 +447,10 @@ function findUserByReference_(reference) {
     signatureUrl: String(row[idx.signatureUrl] || ''),
     _row: rowIndex + 2
   };
+}
+
+function normalizeInputReference(ref) {
+  return sanitizeReference_(ref);
 }
 
 function inferUserType_(reference) {
