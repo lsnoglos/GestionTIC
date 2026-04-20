@@ -3,42 +3,95 @@
   <head>
     <base target="_top" />
     <style>
-      :root { --bg:#f5f7fb; --card:#fff; --line:#d8dfeb; --primary:#2856d6; --muted:#5e6a80; }
-      body { margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#24324a; }
-      .container { max-width:980px; margin:24px auto; padding:0 14px; }
-      .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
-      h1,h2,h3 { margin:0 0 10px; }
+      :root {
+        --bg:#f2f5fb;
+        --bg-soft:#f7f9fd;
+        --card:#ffffff;
+        --line:#d9e1ef;
+        --primary:#1e4fa3;
+        --primary-dark:#173f83;
+        --text:#1f2d45;
+        --muted:#5e6f89;
+        --success:#0f7a2f;
+        --error:#b42318;
+        --shadow:0 8px 24px rgba(16, 42, 86, 0.08);
+      }
+      body {
+        margin:0;
+        font-family:"Inter","Segoe UI","Helvetica Neue",Arial,sans-serif;
+        background:linear-gradient(180deg, #f7f9fd 0%, var(--bg) 100%);
+        color:var(--text);
+        letter-spacing:.1px;
+      }
+      .container { max-width:980px; margin:28px auto; padding:0 16px 24px; }
+      .card {
+        background:var(--card);
+        border:1px solid var(--line);
+        border-radius:14px;
+        padding:18px;
+        margin-bottom:16px;
+        box-shadow:var(--shadow);
+      }
+      h1,h2,h3 { margin:0 0 10px; color:#173054; }
+      h1 { font-size:28px; letter-spacing:.2px; }
+      h2 { font-size:20px; }
       .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
-      label { font-size:13px; font-weight:700; display:block; margin-bottom:4px; }
-      input,select,textarea,button { width:100%; box-sizing:border-box; padding:9px; border-radius:8px; border:1px solid #c7d0e0; }
+      label { font-size:13px; font-weight:700; display:block; margin-bottom:6px; color:#2f3f5f; }
+      input,select,textarea,button {
+        width:100%;
+        box-sizing:border-box;
+        padding:10px 11px;
+        border-radius:10px;
+        border:1px solid #c5d1e4;
+        background:#fff;
+        transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease, transform .08s ease;
+      }
+      input:focus,select:focus,textarea:focus {
+        outline:none;
+        border-color:#7aa0de;
+        box-shadow:0 0 0 3px rgba(37, 95, 177, .16);
+      }
       textarea { min-height:72px; resize:vertical; }
-      button { background:var(--primary); color:#fff; border:none; font-weight:700; cursor:pointer; }
-      button.secondary { background:#5e6a80; }
-      button.ghost { background:#eef2ff; color:#1f3f9d; border:1px solid #b9c8ff; }
+      button {
+        background:linear-gradient(180deg, #2e63ba 0%, var(--primary) 100%);
+        color:#fff;
+        border:none;
+        font-weight:700;
+        cursor:pointer;
+      }
+      button:hover { background:linear-gradient(180deg, #2b5eb2 0%, var(--primary-dark) 100%); }
+      button:active { transform:translateY(1px); }
+      button.secondary { background:linear-gradient(180deg, #6b7a91 0%, #596780 100%); }
+      button.ghost { background:#f3f6fd; color:#22457f; border:1px solid #bccae2; }
       .inline { display:flex; gap:8px; align-items:end; }
       .inline > * { flex:1; }
       .hidden { display:none; }
-      .muted { color:#6a7894; font-size:13px; }
+      .muted { color:var(--muted); font-size:13px; }
       .status { margin-top:8px; font-weight:700; }
       .badge { display:inline-block; border-radius:999px; padding:4px 10px; font-size:12px; color:#fff; margin-right:6px; }
-      .badge.alumno { background:#2c6fb8; }
-      .badge.personal { background:#0d7c6a; }
+      .badge.alumno { background:#2d5ea7; }
+      .badge.personal { background:#0d6f67; }
       .profile-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
       .summary { font-size:14px; }
-      #signatureCanvas { width:100%; height:180px; border:1px dashed #9ca9c4; border-radius:10px; touch-action:none; background:#fff; }
-      .signature-preview { max-width:260px; border:1px solid #ccd5e8; border-radius:8px; padding:6px; background:#fff; }
-      .history-item { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; background:#fafcff; }
+      #signatureCanvas { width:100%; height:180px; border:1px dashed #98aac7; border-radius:10px; touch-action:none; background:var(--bg-soft); }
+      .signature-preview { max-width:260px; border:1px solid #ccd7eb; border-radius:10px; padding:6px; background:#fff; }
+      .history-item { border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; background:#f9fbff; }
       #globalLoading {
-        position:fixed; inset:0; background:rgba(255,255,255,.86);
+        position:fixed; inset:0; background:rgba(243, 247, 253, .9);
         display:flex; align-items:center; justify-content:center;
         z-index:9999;
       }
       #globalLoading img { width:120px; height:120px; }
-      details { border:1px solid #d6deed; border-radius:8px; padding:8px 10px; background:#fcfdff; }
+      details { border:1px solid #d4deec; border-radius:10px; padding:10px; background:#fcfdff; }
       details > summary { cursor:pointer; font-weight:700; }
       .field-disabled { opacity:.75; }
-      .blocked-label { font-size:12px; font-weight:700; color:#b42318; margin-left:6px; }
+      .blocked-label { font-size:12px; font-weight:700; color:var(--error); margin-left:6px; }
       .input-error { border-color:#d92d20 !important; box-shadow:0 0 0 2px rgba(217,45,32,.12); }
+      @media (max-width: 640px) {
+        .container { margin:18px auto; padding:0 12px 18px; }
+        .card { padding:14px; border-radius:12px; }
+        h1 { font-size:24px; }
+      }
     </style>
   </head>
   <body>
@@ -248,7 +301,7 @@
 
       function setStatus(id, msg, ok = true) {
         const el = document.getElementById(id);
-        el.style.color = ok ? '#0f7a2f' : '#b42318';
+        el.style.color = ok ? 'var(--success)' : 'var(--error)';
         el.textContent = msg;
       }
 
