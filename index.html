@@ -82,6 +82,33 @@
         z-index:9999;
       }
       #globalLoading img { width:120px; height:120px; }
+      #successOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(12, 28, 58, 0.62);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 16px;
+      }
+      #successOverlay .overlay-card {
+        background: #fff;
+        border: 1px solid #cfe0f5;
+        border-radius: 14px;
+        box-shadow: 0 12px 30px rgba(12, 32, 70, 0.22);
+        max-width: 460px;
+        width: 100%;
+        text-align: center;
+        padding: 24px 18px;
+      }
+      #successOverlay h3 {
+        color: var(--success);
+        margin: 0 0 8px;
+      }
+      #successOverlay p {
+        margin: 0 0 14px;
+      }
       details { border:1px solid #d4deec; border-radius:10px; padding:10px; background:#fcfdff; }
       details > summary { cursor:pointer; font-weight:700; }
       .field-disabled { opacity:.75; }
@@ -96,6 +123,13 @@
   </head>
   <body>
     <div id="globalLoading"><img src="https://usagif.com/wp-content/uploads/loading-96.gif" alt="Cargando" /></div>
+    <div id="successOverlay" role="dialog" aria-modal="true" aria-labelledby="successOverlayTitle">
+      <div class="overlay-card">
+        <h3 id="successOverlayTitle">Actividad registrada con éxito.</h3>
+        <p>El registro se guardó correctamente.</p>
+        <button id="btnCloseSuccessOverlay" type="button">Cerrar</button>
+      </div>
+    </div>
 
     <div class="container">
       <div class="card">
@@ -289,6 +323,17 @@
         ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
         state.hasDrawn = false;
         state.signatureDraftUrl = '';
+      }
+
+      function clearVisitForm() {
+        document.getElementById('category').value = '';
+        fillSelect(document.getElementById('reason'), []);
+        document.getElementById('reason').value = '';
+        document.getElementById('observation').value = '';
+      }
+
+      function toggleSuccessOverlay(show) {
+        document.getElementById('successOverlay').style.display = show ? 'flex' : 'none';
       }
 
       function isCanvasNotBlank() {
@@ -516,7 +561,7 @@
               const safeRes = normalizeSaveResult(res);
               setStatus('saveMsg', safeRes.message, true);
               paintHistory(safeRes.history);
-              document.getElementById('observation').value = '';
+              toggleSuccessOverlay(true);
               clearSign();
               if (state.existingUser && state.allowProfileEdit) setProfileEditMode(false);
             } catch (err) {
@@ -563,6 +608,10 @@
           setProfileEditMode(!state.allowProfileEdit);
         });
         document.getElementById('category').addEventListener('change', loadReasonsByCategory);
+        document.getElementById('btnCloseSuccessOverlay').addEventListener('click', () => {
+          toggleSuccessOverlay(false);
+          clearVisitForm();
+        });
       });
     </script>
   </body>
