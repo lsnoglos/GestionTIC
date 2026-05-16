@@ -4,14 +4,14 @@
     <base target="_top" />
     <style>
       :root {
-        --bg:#f2f5fb;
-        --bg-soft:#f7f9fd;
+        --bg:#eef3fb;
+        --bg-soft:#f7f9ff;
         --card:#ffffff;
-        --line:#d9e1ef;
-        --primary:#1e4fa3;
-        --primary-dark:#173f83;
-        --text:#1f2d45;
-        --muted:#5e6f89;
+        --line:#dbe5f5;
+        --primary:#2552b8;
+        --primary-dark:#1b3f90;
+        --text:#182741;
+        --muted:#5a6a86;
         --success:#0f7a2f;
         --error:#b42318;
         --shadow:0 8px 24px rgba(16, 42, 86, 0.08);
@@ -23,14 +23,14 @@
         color:var(--text);
         letter-spacing:.1px;
       }
-      .container { max-width:980px; margin:28px auto; padding:0 16px 24px; }
+      .container { max-width:1040px; margin:36px auto; padding:0 16px 28px; }
       .card {
         background:var(--card);
         border:1px solid var(--line);
-        border-radius:14px;
-        padding:18px;
+        border-radius:16px;
+        padding:22px;
         margin-bottom:16px;
-        box-shadow:var(--shadow);
+        box-shadow:0 10px 28px rgba(17, 46, 96, 0.08);
       }
       h1,h2,h3 { margin:0 0 10px; color:#173054; }
       h1 { font-size:28px; letter-spacing:.2px; }
@@ -42,8 +42,8 @@
         box-sizing:border-box;
         padding:10px 11px;
         border-radius:10px;
-        border:1px solid #c5d1e4;
-        background:#fff;
+        border:1px solid #c8d5ec;
+        background:#fbfdff;
         transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease, transform .08s ease;
       }
       input:focus,select:focus,textarea:focus {
@@ -63,7 +63,7 @@
       button:active { transform:translateY(1px); }
       button.secondary { background:linear-gradient(180deg, #6b7a91 0%, #596780 100%); }
       button.ghost { background:#f3f6fd; color:#22457f; border:1px solid #bccae2; }
-      .inline { display:flex; gap:8px; align-items:end; }
+      .inline { display:flex; gap:10px; align-items:end; }
       .inline > * { flex:1; }
       .hidden { display:none; }
       .muted { color:var(--muted); font-size:13px; }
@@ -75,7 +75,7 @@
       .summary { font-size:14px; }
       #signatureCanvas { width:100%; height:180px; border:1px dashed #98aac7; border-radius:10px; touch-action:none; background:var(--bg-soft); }
       .signature-preview { max-width:260px; border:1px solid #ccd7eb; border-radius:10px; padding:6px; background:#fff; }
-      .history-item { border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; background:#f9fbff; }
+      .history-item { border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px; background:#f7faff; }
       #globalLoading {
         position:fixed; inset:0; background:rgba(243, 247, 253, .9);
         display:flex; align-items:center; justify-content:center;
@@ -112,8 +112,10 @@
       details { border:1px solid #d4deec; border-radius:10px; padding:10px; background:#fcfdff; }
       details > summary { cursor:pointer; font-weight:700; }
       .field-disabled { opacity:.75; }
-      .blocked-label { font-size:12px; font-weight:700; color:var(--error); margin-left:6px; }
-      .input-error { border-color:#d92d20 !important; box-shadow:0 0 0 2px rgba(217,45,32,.12); }
+      .welcome-band {
+        border:1px solid #d5e3fb;
+        background:linear-gradient(130deg, #edf3ff 0%, #f7faff 55%, #ffffff 100%);
+      }
       @media (max-width: 640px) {
         .container { margin:18px auto; padding:0 12px 18px; }
         .card { padding:14px; border-radius:12px; }
@@ -137,7 +139,7 @@
         <p class="muted">Ingresa usuario (carnet o correo institucional) y registra la asistencia.</p>
       </div>
 
-      <div class="card">
+      <div class="card welcome-band">
         <h2>1) Buscar usuario</h2>
         <div class="inline">
           <div>
@@ -164,10 +166,6 @@
             <div>
               <label>Usuario buscado</label>
               <input id="searchedUser" disabled class="field-disabled" />
-            </div>
-            <div>
-              <label>Contraseña <span id="pinBlockedTag" class="blocked-label hidden">BLOQUEADA</span></label>
-              <input id="pin" type="password" value="1234" disabled class="field-disabled" />
             </div>
           </div>
 
@@ -426,12 +424,6 @@
         if (!enabled) clearSign();
       }
 
-      function setPinError(enabled) {
-        const pinInput = document.getElementById('pin');
-        pinInput.classList.toggle('input-error', Boolean(enabled));
-        if (enabled) pinInput.focus();
-      }
-
       function applyTypeUI(type) {
         const isStudent = type === 'alumno';
         const label = document.getElementById('labelCareerArea');
@@ -476,10 +468,8 @@
 
         const modeBadge = document.getElementById('modeBadge');
         const editBtn = document.getElementById('btnEditProfile');
-        const pinBlockedTag = document.getElementById('pinBlockedTag');
         const profileAccordion = document.getElementById('profileAccordion');
         document.getElementById('searchedUser').value = safeResult.reference;
-        setPinError(false);
 
         if (safeResult.found && safeResult.user) {
           document.getElementById('fullName').value = safeResult.user.fullName || '';
@@ -487,7 +477,6 @@
           document.getElementById('careerArea').value = safeResult.user.careerArea || '';
           modeBadge.textContent = 'Usuario existente (bloqueado)';
           editBtn.classList.add('hidden');
-          pinBlockedTag.classList.remove('hidden');
           profileAccordion.open = false;
           state.signatureUrl = safeResult.user.signatureUrl || '';
           document.getElementById('signaturePreview').src = state.signatureUrl;
@@ -496,14 +485,12 @@
           document.getElementById('fullName').value = '';
           document.getElementById('gender').value = '';
           document.getElementById('careerArea').value = '';
-          document.getElementById('pin').value = '1234';
           modeBadge.textContent = 'Usuario nuevo';
           editBtn.classList.add('hidden');
-          pinBlockedTag.classList.add('hidden');
           profileAccordion.open = true;
           state.signatureUrl = '';
           document.getElementById('signaturePreview').removeAttribute('src');
-          setStatus('searchMsg', 'Usuario nuevo. Completa nombre, carrera/área, firma y clave.');
+          setStatus('searchMsg', 'Usuario nuevo. Completa nombre, carrera/área y firma.');
         }
 
         setProfileEditMode(!safeResult.found);
@@ -541,7 +528,6 @@
       }
 
       function saveVisit() {
-        setPinError(false);
         const payload = {
           reference: document.getElementById('searchedUser').value.trim(),
           fullName: document.getElementById('fullName').value.trim(),
@@ -577,7 +563,6 @@
           })
           .withFailureHandler(err => {
             const message = getErrorMessage(err, 'Ocurrió un error al guardar el registro.');
-            if (/clave|contraseñ|pin/i.test(message)) setPinError(true);
             setStatus('saveMsg', message, false);
             setGlobalLoading(false);
           })
