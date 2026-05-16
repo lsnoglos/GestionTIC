@@ -167,7 +167,7 @@
             </div>
             <div>
               <label>Contraseña <span id="pinBlockedTag" class="blocked-label hidden">BLOQUEADA</span></label>
-              <input id="pin" type="password" />
+              <input id="pin" type="password" value="1234" disabled class="field-disabled" />
             </div>
           </div>
 
@@ -218,6 +218,7 @@
           <div>
             <label>Motivo</label>
             <select id="reason"></select>
+            <input id="customReason" class="hidden" placeholder="Escribe el motivo" style="margin-top:8px;" />
           </div>
           <div>
             <label>Observación</label>
@@ -241,8 +242,7 @@
     <script>
       const REASON_MAP = {
         'Sistemas': ['Plataforma virtual', 'Portal de alumnos', 'Portal de maestros', 'SIAGES', 'SIRACI'],
-        'Soporte': ['Asistencia ofimática', 'Red', 'Impresora', 'Computadora'],
-        'Otros': ['Instalación de programa', 'Instalación de sistema', 'Instalación de red', 'Instalación de dispositivo', 'Otros']
+        'Otros': []
       };
 
       const state = {
@@ -329,6 +329,8 @@
         document.getElementById('category').value = '';
         fillSelect(document.getElementById('reason'), []);
         document.getElementById('reason').value = '';
+        document.getElementById('customReason').value = '';
+        document.getElementById('customReason').classList.add('hidden');
         document.getElementById('observation').value = '';
       }
 
@@ -494,7 +496,7 @@
           document.getElementById('fullName').value = '';
           document.getElementById('gender').value = '';
           document.getElementById('careerArea').value = '';
-          document.getElementById('pin').value = '';
+          document.getElementById('pin').value = '1234';
           modeBadge.textContent = 'Usuario nuevo';
           editBtn.classList.add('hidden');
           pinBlockedTag.classList.add('hidden');
@@ -545,9 +547,11 @@
           fullName: document.getElementById('fullName').value.trim(),
           gender: document.getElementById('gender').value,
           careerArea: document.getElementById('careerArea').value,
-          pin: document.getElementById('pin').value,
+          pin: '1234',
           category: document.getElementById('category').value,
-          reason: document.getElementById('reason').value,
+          reason: document.getElementById('category').value === 'Otros'
+            ? document.getElementById('customReason').value.trim()
+            : document.getElementById('reason').value,
           observation: document.getElementById('observation').value.trim(),
           signatureDataUrl: getSignaturePayload(),
           allowProfileEdit: state.allowProfileEdit
@@ -582,8 +586,21 @@
 
       function loadReasonsByCategory() {
         const category = document.getElementById('category').value;
+        const reasonSelect = document.getElementById('reason');
+        const customReason = document.getElementById('customReason');
+
+        if (category === 'Otros') {
+          fillSelect(reasonSelect, []);
+          reasonSelect.classList.add('hidden');
+          customReason.classList.remove('hidden');
+          return;
+        }
+
         const reasons = REASON_MAP[category] || [];
-        fillSelect(document.getElementById('reason'), reasons);
+        fillSelect(reasonSelect, reasons);
+        reasonSelect.classList.remove('hidden');
+        customReason.classList.add('hidden');
+        customReason.value = '';
       }
 
       document.addEventListener('DOMContentLoaded', () => {
