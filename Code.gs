@@ -1,7 +1,7 @@
 const CONFIG = {
   APP_NAME: 'Mesa de Soporte TIC',
   USERS_SHEET: 'Usuarios',
-  LOG_SHEETS: ['Soporte', 'Sistemas', 'Otros'],
+  LOG_SHEETS: ['Sistemas', 'Otros'],
   TZ: Session.getScriptTimeZone() || 'America/Managua',
   DEFAULT_EMAIL_DOMAIN: 'UCC.EDU.NI',
   SIGNATURE_FOLDER_ID: '10yZgZY3MfnCQAhh4RtTuusQ-RjDWUUu-',
@@ -104,17 +104,13 @@ function saveVisit(payload) {
     if (!reason) throw new Error('Debes seleccionar el motivo de asistencia.');
 
     const observation = String(payload.observation || '').trim();
-    const inputPin = String(payload.pin || '').trim();
-    if (!inputPin) throw new Error('Debes ingresar tu clave para continuar.');
+    const inputPin = '1234';
 
     const existingUser = findUserByReference_(cleanRef);
     let resolvedUser;
 
     if (existingUser) {
-      if (String(existingUser.pin || '') !== inputPin) {
-        throw new Error('La clave no coincide con el registro existente.');
-      }
-      resolvedUser = updateExistingUser_(existingUser, payload);
+      resolvedUser = updateExistingUser_(existingUser, payload, inputPin);
     } else {
       resolvedUser = createUser_(cleanRef, payload, inputPin);
     }
@@ -210,7 +206,7 @@ function createUser_(reference, payload, inputPin) {
   return userObject;
 }
 
-function updateExistingUser_(existingUser, payload) {
+function updateExistingUser_(existingUser, payload, inputPin) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.USERS_SHEET);
   const row = existingUser._row;
   const allowProfileEdit = Boolean(payload.allowProfileEdit);
@@ -230,6 +226,7 @@ function updateExistingUser_(existingUser, payload) {
   const updatedAt = new Date();
   const latest = {
     ...existingUser,
+    pin: inputPin || '1234',
     signatureFileId: signature.fileId,
     signatureUrl: signature.url,
     updatedAt
@@ -256,6 +253,7 @@ function updateExistingUser_(existingUser, payload) {
     sheet.getRange(row, 5).setValue(latest.careerArea);
   }
 
+  sheet.getRange(row, 6).setValue(latest.pin || '1234');
   sheet.getRange(row, 7).setValue(latest.signatureFileId || '');
   sheet.getRange(row, 8).setValue(latest.signatureUrl || '');
   sheet.getRange(row, 10).setValue(updatedAt);
@@ -288,7 +286,6 @@ function appendLog_(user, details) {
 function normalizeCategorySheet_(category) {
   const raw = String(category || '').trim().toLowerCase();
   if (!raw) return '';
-  if (raw === 'soporte' || raw === 'soporte técnico') return 'Soporte';
   if (raw === 'sistemas') return 'Sistemas';
   if (raw === 'otros') return 'Otros';
   return '';
