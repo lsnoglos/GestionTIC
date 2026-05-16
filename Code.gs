@@ -15,10 +15,12 @@ const CONFIG = {
     'Derecho',
     'Contabilidad',
     'Contaduría',
-    'Ing. Industrial'
+    'Ing. Industrial',
+    'Turismo',
+    'Administración de empresas'
   ],
   AREAS: [
-    'Ingeniería Civil',
+    'Ingeniería',
     'CCEEyJJ',
     'Investigación',
     'Posgrado y EC',
@@ -30,8 +32,9 @@ const CONFIG = {
     'Recursos Humanos',
     'Registro Académico',
     'Ingeniería Agronómica',
-    'Diseño Gráfico y Arq',
-    'TIC'
+    'Diseño Gráfico, Ing. Sistemas y Arq',
+    'TIC',
+    'Gestión de calidad'
   ]
 };
 
